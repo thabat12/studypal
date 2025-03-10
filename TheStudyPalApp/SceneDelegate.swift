@@ -16,7 +16,39 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Use this method to optionally configure and attach the UIWindow `window` to the provided UIWindowScene `scene`.
         // If using a storyboard, the `window` property will automatically be initialized and attached to the scene.
         // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
-        guard let _ = (scene as? UIWindowScene) else { return }
+        
+        // ABHINAV: to configure tab bar/ nav bar controllers we have to do things here
+        guard let windowScene = (scene as? UIWindowScene) else { return }
+        
+        // this iOS app contains only one scene, so we can just configure the tab bar controller & embed it with the root view controller here
+        window = UIWindow(windowScene: windowScene)
+        
+        let homeScreenVC = HomeScreenViewController()
+        let groupsVC = GroupsViewController()
+        
+        let tabBarController = UITabBarController()
+        
+        // both the separate view controllers must be embedded in their own navigation controllers!
+        let homeNavController = UINavigationController(rootViewController: homeScreenVC)
+        let groupNavController = UINavigationController(rootViewController: groupsVC)
+        
+        tabBarController.viewControllers = [homeNavController, groupNavController]
+        
+        homeScreenVC.tabBarItem = UITabBarItem(
+            title: "Home",
+            image: UIImage(systemName: "house.fill"), tag: 1
+        )
+        
+        groupsVC.tabBarItem = UITabBarItem(
+            title: "Groups",
+            image: UIImage(systemName: "rectangle.3.group.bubble.fill"),
+            tag: 2
+        )
+        
+        window?.rootViewController = tabBarController
+        window?.makeKeyAndVisible()
+        
+        return
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
