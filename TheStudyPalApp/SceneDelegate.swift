@@ -6,11 +6,11 @@
 //
 
 import UIKit
+import FirebaseAuth
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     var window: UIWindow?
-
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         // Use this method to optionally configure and attach the UIWindow `window` to the provided UIWindowScene `scene`.
@@ -23,6 +23,22 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // this iOS app contains only one scene, so we can just configure the tab bar controller & embed it with the root view controller here
         window = UIWindow(windowScene: windowScene)
         
+        // Check if user is logged in
+        if Auth.auth().currentUser != nil {
+            // User is logged in, show main app UI
+            setupMainInterface()
+        } else {
+            // No user is logged in, show login screen
+            let loginVC = LoginViewController()
+            window?.rootViewController = loginVC
+        }
+        
+        window?.makeKeyAndVisible()
+        
+        return
+    }
+    
+    func setupMainInterface() {
         let homeScreenVC = HomeScreenViewController()
         let groupsVC = GroupsViewController()
         
@@ -46,9 +62,6 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         )
         
         window?.rootViewController = tabBarController
-        window?.makeKeyAndVisible()
-        
-        return
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {

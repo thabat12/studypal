@@ -1,7 +1,31 @@
 import UIKit
+import FirebaseAuth
 
 class HomeScreenViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
 
+    // Side Menu
+    private let sideMenuView: UIView = {
+        let view = UIView()
+        view.backgroundColor = .systemBackground
+        view.layer.shadowColor = UIColor.black.cgColor
+        view.layer.shadowOpacity = 0.3
+        view.layer.shadowRadius = 5
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+    
+    private let logoutButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Logout", for: .normal)
+        button.setImage(UIImage(systemName: "rectangle.portrait.and.arrow.right"), for: .normal)
+        button.tintColor = .systemRed
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    
+    private var isSideMenuShown = false
+    private var sideMenuLeadingConstraint: NSLayoutConstraint?
+    
     // UI Elements
     let taskTableView = UITableView()
     let taskLabel = UILabel()
@@ -41,6 +65,7 @@ class HomeScreenViewController: UIViewController, UITableViewDelegate, UITableVi
         navigationItem.title = "StudyPal"
         setupUI()
         setupNavigationBar()
+        setupSideMenu()
     }
 
     func setupNavigationBar() {
@@ -53,7 +78,48 @@ class HomeScreenViewController: UIViewController, UITableViewDelegate, UITableVi
     }
 
     @objc func menuButtonTapped() {
+        toggleSideMenu()
+    }
+
+    private func toggleSideMenu() {
+        isSideMenuShown.toggle()
+        UIView.animate(withDuration: 0.3) {
+            self.sideMenuLeadingConstraint?.constant = self.isSideMenuShown ? 0 : -250
+            self.view.layoutIfNeeded()
+        }
+    }
+
+    @objc private func handleTapOutside(_ gesture: UITapGestureRecognizer) {
+        let location = gesture.location(in: view)
+        if isSideMenuShown && !sideMenuView.frame.contains(location) {
+            toggleSideMenu()
+        }
+    }
+
+    @objc private func logoutTapped() {
+        let alert = UIAlertController(title: "Logout", message: "Are you sure you want to logout?", preferredStyle: .alert)
         
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Logout", style: .destructive) { [weak self] _ in
+            do {
+                try Auth.auth().signOut()
+                // Show login screen
+                if let sceneDelegate = UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate {
+                    let loginVC = LoginViewController()
+                    sceneDelegate.window?.rootViewController = loginVC
+                }
+            } catch {
+                self?.showError("Failed to logout. Please try again.")
+            }
+        })
+        
+        present(alert, animated: true)
+    }
+
+    private func showError(_ message: String) {
+        let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 
     func setupUI() {
@@ -180,5 +246,30 @@ class HomeScreenViewController: UIViewController, UITableViewDelegate, UITableVi
             cell.configure(title: note.0, date: note.1)
             return cell
         }
+    }
+
+    private func setupSideMenu() {
+        view.addSubview(sideMenuView)
+        sideMenuView.addSubview(logoutButton)
+        
+        sideMenuLeadingConstraint = sideMenuView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: -250)
+        
+        NSLayoutConstraint.activate([
+            sideMenuView.topAnchor.constraint(equalTo: view.topAnchor),
+            sideMenuView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            sideMenuView.widthAnchor.constraint(equalToConstant: 250),
+            sideMenuLeadingConstraint!,
+            
+            logoutButton.leadingAnchor.constraint(equalTo: sideMenuView.leadingAnchor, constant: 20),
+            logoutButton.bottomAnchor.constraint(equalTo: sideMenuView.bottomAnchor, constant: -120),
+            logoutButton.heightAnchor.constraint(equalToConstant: 44)
+        ])
+        
+        logoutButton.addTarget(self, action: #selector(logoutTapped), for: .touchUpInside)
+        
+        // Add tap gesture to dismiss side menu
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTapOutside))
+        tapGesture.cancelsTouchesInView = false
+        view.addGestureRecognizer(tapGesture)
     }
 }
