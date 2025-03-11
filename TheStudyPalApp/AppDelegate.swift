@@ -9,7 +9,7 @@ import UIKit
 import CoreData
 import FirebaseCore
 import GoogleSignIn
-import FacebookCore
+//import FacebookCore
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -92,12 +92,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         
         // Handle Facebook Sign In
-        return ApplicationDelegate.shared.application(
-            app,
-            open: url,
-            sourceApplication: options[UIApplication.OpenURLOptionsKey.sourceApplication] as? String,
-            annotation: options[UIApplication.OpenURLOptionsKey.annotation]
-        )
+//        return ApplicationDelegate.shared.application(
+//            app,
+//            open: url,
+//            sourceApplication: options[UIApplication.OpenURLOptionsKey.sourceApplication] as? String,
+//            annotation: options[UIApplication.OpenURLOptionsKey.annotation]
+//        )
+        
+        return false
     }
 
 }

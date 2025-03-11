@@ -6,11 +6,15 @@
 //
 
 import UIKit
+import FirebaseCore
+import FirebaseFirestore
 
 class CreateGroupViewController: UIViewController {
     
     static let BAR_HEIGHT = 80.0
     private var privacyToggled = false
+    
+    private var db: Firestore!
     
     // references to the UI elements as I create them here...
     private var topBar: UIView!
@@ -55,6 +59,9 @@ class CreateGroupViewController: UIViewController {
         textField.layer.cornerRadius = 8
         textField.clipsToBounds = true
         textField.translatesAutoresizingMaskIntoConstraints = false
+        
+        // set the reference here
+        self.textField = textField
         
         let horizontalStack = UIStackView()
         horizontalStack.axis = .horizontal
@@ -110,6 +117,44 @@ class CreateGroupViewController: UIViewController {
             createGroupButton.centerXAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.centerXAnchor)
         ])
         
+        createGroupButton.addAction(UIAction {
+            action in
+            
+            
+            // one generic alert controller for now
+            let errorAlertController = UIAlertController(title: "Cannot Create Group Chat", message: "Ensure that the name is not an empty string and also that you have internet connection", preferredStyle: .alert)
+            let errorAlertAction = UIAlertAction(title: "OK", style: .default, handler: nil)
+            errorAlertController.addAction(errorAlertAction)
+            
+            if self.db == nil {
+                self.present(errorAlertController, animated: true)
+                return
+            }
+            
+            if self.textField.text! == "" {
+                self.present(errorAlertController, animated: true)
+                return
+            }
+            
+            do {
+                Task {
+                    
+                    do {
+                        try await self.db.collection("groupChats").document(self.textField.text!).setData([
+                            "name": self.textField.text!,
+                            "private": self.privacyToggled
+                        ])
+                        
+                        self.navigationController?.popViewController(animated: true)
+                    } catch {
+                        self.present(errorAlertController, animated: true)
+                    }
+                }
+            }
+            
+            
+        }, for: .touchUpInside)
+        
         
     }
     
@@ -121,6 +166,8 @@ class CreateGroupViewController: UIViewController {
         
         setupTopBar()
         setupUIBody()
+        
+        self.db = Firestore.firestore()
     }
     
     override func viewWillDisappear(_ animated: Bool) {

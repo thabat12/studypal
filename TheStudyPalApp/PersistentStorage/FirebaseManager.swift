@@ -9,7 +9,7 @@ import UIKit
 import FirebaseCore
 import FirebaseAuth
 import GoogleSignIn
-import FacebookLogin
+//import FacebookLogin
 
 class FirebaseManager {
     
@@ -22,10 +22,10 @@ class FirebaseManager {
         }
         
         // Configure Facebook Sign In
-        ApplicationDelegate.shared.application(
-            UIApplication.shared,
-            didFinishLaunchingWithOptions: nil
-        )
+//        ApplicationDelegate.shared.application(
+//            UIApplication.shared,
+//            didFinishLaunchingWithOptions: nil
+//        )
     }
     
     // MARK: - Authentication State

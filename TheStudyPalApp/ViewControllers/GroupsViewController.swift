@@ -6,10 +6,10 @@
 //
 
 import UIKit
+import SwiftUI
 
-class GroupsViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
-    
-    private let tableView = UITableView()
+class GroupsViewController: UIViewController {
+
     private let emptyStateLabel = UILabel()
     
     private var buttonWidthConstraint: NSLayoutConstraint!
@@ -17,7 +17,6 @@ class GroupsViewController: UIViewController, UITableViewDelegate, UITableViewDa
     
     
     private let createGroupVC: CreateGroupViewController = CreateGroupViewController()
-    
     private let joinGroupVC: JoinGroupViewController = JoinGroupViewController()
     
     
@@ -51,21 +50,12 @@ class GroupsViewController: UIViewController, UITableViewDelegate, UITableViewDa
     
     private var buttonToggled = false
     
-    private let blurView: UIVisualEffectView = {
-        let blurEffect = UIBlurEffect(style: .systemThinMaterialDark)
-        let view = UIVisualEffectView(effect: blurEffect)
-        view.alpha = 0
-        
-        return view
-    }()
-    
     private var optionsView: UIStackView!
     
     private func tapButtonAnimation() {
         
         UIView.animate(withDuration: GroupsViewController.ANIM_DURATION) {
             if self.buttonToggled {
-                self.blurView.alpha = 0
                 self.addGroupButton.transform = .identity
                 self.addGroupButton.layer.cornerRadius = GroupsViewController.DIM / 2
                 
@@ -93,65 +83,11 @@ class GroupsViewController: UIViewController, UITableViewDelegate, UITableViewDa
     }
     
     private func setupView() {
-        self.blurView.frame = self.view.frame
         
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(tapFunction))
-        
-        self.blurView.addGestureRecognizer(tapGesture)
-        
-        self.view.addSubview(self.blurView)
+        self.view.addGestureRecognizer(tapGesture)
     }
     
-    private func setupTopBar() {
-        let topBar = UIView()
-        
-        topBar.translatesAutoresizingMaskIntoConstraints = false
-        
-        let blurEffect = UIBlurEffect(style: .systemUltraThinMaterial)
-        let blurView = UIVisualEffectView(effect: blurEffect)
-        blurView.translatesAutoresizingMaskIntoConstraints = false
-        topBar.addSubview(blurView)
-        
-        
-        let titleLabel = UILabel()
-        titleLabel.text = "Groups"
-        titleLabel.font = UIFont.systemFont(ofSize: 24, weight: .bold)
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        topBar.addSubview(titleLabel)
-        
-        self.view.addSubview(topBar)
-        
-        NSLayoutConstraint.activate([
-                topBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-                topBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-                topBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-                topBar.heightAnchor.constraint(equalToConstant: 60),
-
-                blurView.topAnchor.constraint(equalTo: topBar.topAnchor),
-                blurView.leadingAnchor.constraint(equalTo: topBar.leadingAnchor),
-                blurView.trailingAnchor.constraint(equalTo: topBar.trailingAnchor),
-                blurView.bottomAnchor.constraint(equalTo: topBar.bottomAnchor),
-
-                titleLabel.centerXAnchor.constraint(equalTo: topBar.centerXAnchor),
-                titleLabel.centerYAnchor.constraint(equalTo: topBar.centerYAnchor)
-            ])
-    }
-    
-    private func setupGroupsTableView() {
-        let tableView = UITableView()
-        tableView.translatesAutoresizingMaskIntoConstraints = false
-        tableView.delegate = self
-        tableView.dataSource = self
-        
-        tableView.register(GroupChatUITableViewCell.self, forCellReuseIdentifier: GroupChatUITableViewCell.identifier)
-        
-        NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: self.view.topAnchor),
-            tableView.bottomAnchor.constraint(equalTo: self.view.bottomAnchor),
-            tableView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: self.view.trailingAnchor)
-        ])
-    }
     
     private func setupOptionsView() {
         // constraints will fill in for where the button would be at anyways
@@ -201,7 +137,6 @@ class GroupsViewController: UIViewController, UITableViewDelegate, UITableViewDa
                 guard let button = addGroupButton else { return }
                 
                 UIView.animate(withDuration: GroupsViewController.ANIM_DURATION) {
-                    self.blurView.alpha = 1
                     button.layer.cornerRadius = 20
                     button.setImage(nil, for: .normal)
                     button.setImage(nil, for: .highlighted)
@@ -218,9 +153,50 @@ class GroupsViewController: UIViewController, UITableViewDelegate, UITableViewDa
         )
     }
     
+    
+    /*
+     We will be moving away from UIKit because as these files have revealed to us, this stuff gets very messy and hard to manage.
+     so from now on we are going to be doing things with SwiftUI and integrating the components. Soon, all these files will eventually just become SwiftUI as well.
+     */
+    private func setupTableView() {
+        print("setup table view is called")
+        let messageListView = GroupChatUITableView(messages: [
+            GroupChatInfo(name: "Group 1", recentMessage: "Hey guys"),
+            GroupChatInfo(name: "Group 2", recentMessage: "This is from another group"),
+            GroupChatInfo(name: "Group 3", recentMessage: "This is from the third group"),
+            GroupChatInfo(name: "Group 1", recentMessage: "Hey guys"),
+            GroupChatInfo(name: "Group 2", recentMessage: "This is from another group"),
+            GroupChatInfo(name: "Group 3", recentMessage: "This is from the third group"),
+            GroupChatInfo(name: "Group 1", recentMessage: "Hey guys"),
+            GroupChatInfo(name: "Group 2", recentMessage: "This is from another group"),
+            GroupChatInfo(name: "Group 3", recentMessage: "This is from the third group")
+        ])
+        
+        let hostingController = UIHostingController(rootView: messageListView)
+        
+        self.addChild(hostingController)
+        self.view.addSubview(hostingController.view)
+        
+        hostingController.view.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            hostingController.view.topAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.topAnchor),
+            hostingController.view.leadingAnchor.constraint(equalTo: self.view.leadingAnchor),
+            hostingController.view.trailingAnchor.constraint(equalTo: self.view.trailingAnchor),
+            hostingController.view.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.bottomAnchor)
+        ])
+        
+        hostingController.view.backgroundColor = .red
+        
+        hostingController.didMove(toParent: self)
+        
+        print("the hosting controller is all set up and it should work...")
+    }
+    
+    
     private func setupUI() {
+        setupTableView()
         setupView()
-        setupTopBar()
         setupAddGroupChatButton()
     }
     
@@ -262,15 +238,5 @@ class GroupsViewController: UIViewController, UITableViewDelegate, UITableViewDa
         
         
         setupUI()
-    }
-    
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return 0
-    }
-    
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: GroupChatUITableViewCell.identifier, for: indexPath)
-        
-        return cell
     }
 }

@@ -41,24 +41,33 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func setupMainInterface() {
         let homeScreenVC = HomeScreenViewController()
         let groupsVC = GroupsViewController()
+        let profileVC = ProfileViewController()
         
         let tabBarController = UITabBarController()
         
         // both the separate view controllers must be embedded in their own navigation controllers!
         let homeNavController = UINavigationController(rootViewController: homeScreenVC)
         let groupNavController = UINavigationController(rootViewController: groupsVC)
+        let profileNavController = UINavigationController(rootViewController: profileVC)
         
-        tabBarController.viewControllers = [homeNavController, groupNavController]
+        tabBarController.viewControllers = [homeNavController, groupNavController, profileNavController]
         
         homeScreenVC.tabBarItem = UITabBarItem(
             title: "Home",
-            image: UIImage(systemName: "house.fill"), tag: 1
+            image: UIImage(systemName: "house.fill"),
+            tag: 1
         )
         
         groupsVC.tabBarItem = UITabBarItem(
             title: "Groups",
             image: UIImage(systemName: "rectangle.3.group.bubble.fill"),
             tag: 2
+        )
+        
+        profileVC.tabBarItem = UITabBarItem(
+            title: "Profile",
+            image: UIImage(systemName: "person.crop.circle.fill"),
+            tag: 3
         )
         
         window?.rootViewController = tabBarController
