@@ -160,7 +160,15 @@ class GroupsViewController: UIViewController {
      */
     private func setupTableView() {
         print("setup table view is called")
-        let messageListView = GroupChatUITableView()
+        let messageListView = GroupChatUITableView(action: {
+            _ in
+            
+            let alertController = UIAlertController(title: "Not implemented yet", message: "We all have exams this week so this is unfortunately the best we can do. Our codebase is already pretty large, like nearly 3k lines of code. we got a lot of the framework set up for how to work on this project, and spring break will allow us to polish what we already have and do more things", preferredStyle: .alert)
+            
+            alertController.addAction(UIAlertAction(title: "OK", style: .default))
+            
+            self.present(alertController, animated: true)
+        })
         
         let hostingController = UIHostingController(rootView: messageListView)
         
@@ -175,8 +183,6 @@ class GroupsViewController: UIViewController {
             hostingController.view.trailingAnchor.constraint(equalTo: self.view.trailingAnchor),
             hostingController.view.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.bottomAnchor)
         ])
-        
-        hostingController.view.backgroundColor = .red
         
         hostingController.didMove(toParent: self)
         

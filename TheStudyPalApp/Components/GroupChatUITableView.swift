@@ -40,6 +40,8 @@ class GroupChatViewModel: ObservableObject {
 struct GroupChatUITableView: View {
     @StateObject private var viewModel = GroupChatViewModel()
     
+    let action: (String) -> Void
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -52,7 +54,6 @@ struct GroupChatUITableView: View {
                         .padding()
                 } else {
                     List(viewModel.groupChats) { groupChat in
-                        NavigationLink(destination: GroupChatDetailView(groupChat: groupChat)) {
                             HStack {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text(groupChat.name!)
@@ -67,7 +68,10 @@ struct GroupChatUITableView: View {
                                 
                                 Spacer()
                             }
-                        }
+                            .onTapGesture {
+                                action("something")
+                            }
+                    
                         
                     }
                 }
@@ -84,5 +88,7 @@ struct GroupChatUITableView: View {
 
 
 #Preview {
-    GroupChatUITableView()
+    GroupChatUITableView(action: {
+        _ in 
+    })
 }

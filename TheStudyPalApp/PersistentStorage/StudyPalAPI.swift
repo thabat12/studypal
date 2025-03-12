@@ -70,44 +70,53 @@ class StudyPalAPI {
         guard let uid = Auth.auth().currentUser?.uid else {
             throw FirebaseAPIErrors.userNotSignedIn
         }
-        
+        print(1)
         let groupChatRef = self.db.collection("groupChats").document(groupChatId)
         let documentSnapshot = try await groupChatRef.getDocument()
+        print(2)
         
         if documentSnapshot.exists {
+            print(3)
             let groupChatData = documentSnapshot.data()
             var members = groupChatData?["members"] as? [String] ?? []
-            
+            print(4)
             if !members.contains(uid) {
                 members.append(uid)
-                
+                print(5)
                 try await groupChatRef.updateData([
                     "members": members
                 ])
-                
+                print(6)
                 return true
             } else {
+                print(7)
                 throw FirebaseAPIErrors.userAlreadyInGroup
             }
         } else {
+            print(8)
             throw FirebaseAPIErrors.groupChatNotFound
         }
     }
     
     static func getAllGroupChats(limit: Int = 20) async throws -> [GroupChatInfo] {
+        print("get all group chats")
         if let _ = Auth.auth().currentUser?.uid {
+            print("uid of user is valid but not using it")
             let groupChatsRef = StudyPalAPI.db.collection("groupChats")
-            
-            let snapshotQuery = try await groupChatsRef.limit(to: limit).getDocuments()
+            print("1")
+            let snapshotQuery = try await groupChatsRef.whereField("isPrivate", isEqualTo: false).limit(to: limit).getDocuments()
             var groupChats: [GroupChatInfo] = []
-            
+            print("2")
             for document in snapshotQuery.documents {
+                print("4")
+                print(document.data())
                 if let groupChat = try GroupChatInfo(dictionary: document.data()) {
                     groupChats.append(groupChat)
                 } else {
                     throw FirebaseAPIErrors.errorParsingFirestoreDocument
                 }
             }
+            print("3")
             
             return groupChats
             
