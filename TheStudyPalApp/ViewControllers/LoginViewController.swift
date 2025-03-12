@@ -388,6 +388,10 @@ class LoginViewController: UIViewController {
         }
     }
     
+    private func updateUserDetailsFirebase() {
+        
+    }
+    
     private func handleSuccessfulLogin() {
         if let sceneDelegate = UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate {
             sceneDelegate.setupMainInterface()

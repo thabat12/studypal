@@ -91,14 +91,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return true
         }
         
-        // Handle Facebook Sign In
-//        return ApplicationDelegate.shared.application(
-//            app,
-//            open: url,
-//            sourceApplication: options[UIApplication.OpenURLOptionsKey.sourceApplication] as? String,
-//            annotation: options[UIApplication.OpenURLOptionsKey.annotation]
-//        )
-        
         return false
     }
 

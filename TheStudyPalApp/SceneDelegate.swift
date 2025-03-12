@@ -25,6 +25,18 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         
         // Check if user is logged in
         if Auth.auth().currentUser != nil {
+            
+            // User logged in, update the user details
+            Task {
+                
+                do {
+                    let _ = try await StudyPalAPI.updateUserDetailsFirestore()
+                } catch {
+                    fatalError("Critical Error: user details failed to update")
+                }
+                
+            }
+            
             // User is logged in, show main app UI
             setupMainInterface()
         } else {

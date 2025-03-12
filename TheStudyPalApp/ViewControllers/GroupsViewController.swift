@@ -160,17 +160,7 @@ class GroupsViewController: UIViewController {
      */
     private func setupTableView() {
         print("setup table view is called")
-        let messageListView = GroupChatUITableView(messages: [
-            GroupChatInfo(name: "Group 1", recentMessage: "Hey guys"),
-            GroupChatInfo(name: "Group 2", recentMessage: "This is from another group"),
-            GroupChatInfo(name: "Group 3", recentMessage: "This is from the third group"),
-            GroupChatInfo(name: "Group 1", recentMessage: "Hey guys"),
-            GroupChatInfo(name: "Group 2", recentMessage: "This is from another group"),
-            GroupChatInfo(name: "Group 3", recentMessage: "This is from the third group"),
-            GroupChatInfo(name: "Group 1", recentMessage: "Hey guys"),
-            GroupChatInfo(name: "Group 2", recentMessage: "This is from another group"),
-            GroupChatInfo(name: "Group 3", recentMessage: "This is from the third group")
-        ])
+        let messageListView = GroupChatUITableView()
         
         let hostingController = UIHostingController(rootView: messageListView)
         

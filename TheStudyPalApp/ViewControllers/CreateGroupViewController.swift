@@ -137,13 +137,10 @@ class CreateGroupViewController: UIViewController {
             }
             
             do {
+                // support for asynchronous code execution in the background
                 Task {
-                    
                     do {
-                        try await self.db.collection("groupChats").document(self.textField.text!).setData([
-                            "name": self.textField.text!,
-                            "private": self.privacyToggled
-                        ])
+                        try await StudyPalAPI.createGroupChat(groupChatName: self.textField.text!, privacySetting: self.privacyToggled)
                         
                         self.navigationController?.popViewController(animated: true)
                     } catch {
