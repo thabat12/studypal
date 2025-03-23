@@ -41,12 +41,28 @@ class GroupChatViewModel: ObservableObject {
         self.isLoading = false
         
     }
+    
+    #if DEBUG
+    @MainActor
+    func mockGetAllGroupChats() {
+        groupChats = [
+            GroupChatInfoModel(name: "Group 1", isPrivate: true, members: ["rohan", "abhinav", "tejas"], recentMessage: "recent message 1"),
+            GroupChatInfoModel(name: "Group 2", isPrivate: true, members: ["rohan", "abhinav", "tejas"], recentMessage: "recent message 2"),
+            GroupChatInfoModel(name: "Group 3", isPrivate: true, members: ["rohan", "abhinav", "tejas"], recentMessage: "recent message 3"),
+            GroupChatInfoModel(name: "Group 4", isPrivate: true, members: ["rohan", "abhinav", "tejas"], recentMessage: "recent message 4")
+        ]
+        self.errorMessage = nil
+        self.isLoading = false
+    }
+    #endif
 }
+
 
 
 struct GroupsView: View {
     
     @ObservedObject private var viewModel = GroupChatViewModel()
+    @State private var expandedBinding: Bool = false
     
     var body: some View {
         ZStack(alignment: .center) {
@@ -76,12 +92,43 @@ struct GroupsView: View {
                         print("pressed")
                     }
                 }
+                
+                ZStack(alignment: .bottomTrailing) {
+                    Color.clear
+                    
+                    AddButtonSheet(padding: 15, expandedBinding: $expandedBinding) {
+                        VStack(alignment: .center) {
+                            Text("Create Group")
+                                .foregroundStyle(Color.white)
+                                .padding(.vertical, 5)
+                            Divider()
+                            Text("Join Group")
+                                .foregroundStyle(Color.white)
+                                .padding(.vertical, 5)
+                        }
+                        .padding(.vertical, 10)
+                    }
+                    .frame(maxWidth: 250)
+                    .safeAreaPadding(.bottom, 90)
+                    .safeAreaPadding(.trailing, 30)
+                    
+                }
             }
         }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0.0)
+                .onChanged {_ in
+                    expandedBinding.toggle()
+                }
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             Task {
+                #if DEBUG
+                viewModel.mockGetAllGroupChats()
+                #else
                 await viewModel.getAllGroupChats()
+                #endif
             }
         }
     }

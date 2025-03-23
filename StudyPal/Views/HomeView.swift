@@ -139,9 +139,10 @@ struct HomeView: View {
 }
 
 /*
- 
- 
- 
- 
+ Just know:
+  - HStack, VStack, ZStack
+  - modifiers:
+    .frame, .padding, .resizable -> .aspectRatio (for images)
+  - withAnimation will interpolate any values that are associated with it
  */
 
