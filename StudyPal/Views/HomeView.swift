@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Foundation
 
 // From old repository
 let taskData = [
@@ -28,6 +29,20 @@ let notesData = [
     ("Note Entry", "2/14/25")
 ]
 
+struct TaskDataModel: Identifiable {
+    var id: UUID = .init()
+    let taskName: String
+    let taskType: String
+    var taskIsFinished: Bool
+}
+
+struct NoteDataModel: Identifiable {
+    let id: UUID = .init()
+    let name: String
+    let date: String
+}
+
+
 struct HomeView: View {
     
     @State private var allTasks: [TaskDataModel] = taskData.map { data in
@@ -37,6 +52,8 @@ struct HomeView: View {
     @State private var allNotes: [NoteDataModel] = notesData.map { note in
         NoteDataModel(name: note.0, date: note.1)
     }
+    
+    @EnvironmentObject private var appState: AppState
     
     var body: some View {
         ScrollView {
@@ -57,10 +74,17 @@ struct HomeView: View {
                             Text("Tasks for Today")
                                 .font(.system(size: 20))
                             Spacer()
-                            Image(systemName: "plus")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 20, height: 20)
+                            
+                            
+                            NavigationLink {
+                                AddTaskView()
+                            } label: {
+                                Image(systemName: "plus")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 20, height: 20)
+                            }
+                            
                         }
                     }
                 }

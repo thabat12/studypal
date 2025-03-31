@@ -1,2 +1,138 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23605" systemVersion="23G93" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier=""/>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23605" systemVersion="23G93" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="AINotesMetadata" representedClassName="AINotesMetadata" syncable="YES" codeGenerationType="category">
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="filename" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="String"/>
+        <relationship name="createdBy" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Member" inverseName="notes" inverseEntity="Member"/>
+        <relationship name="fromGroup" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GroupChatInfo" inverseName="associatedNotes" inverseEntity="GroupChatInfo"/>
+        <relationship name="fromTranscript" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AudioTranscriptMetadata"/>
+    </entity>
+    <entity name="AttachmentRepresentable" representedClassName="AttachmentRepresentable" syncable="YES" codeGenerationType="category">
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="duration" optional="YES" attributeType="Double" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="filename" optional="YES" attributeType="String"/>
+        <attribute name="filesize" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="fileURL" optional="YES" attributeType="String"/>
+        <attribute name="height" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="isDownloaded" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="type" optional="YES" attributeType="String"/>
+        <attribute name="width" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <relationship name="createdBy" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Member"/>
+    </entity>
+    <entity name="AudioTranscriptMetadata" representedClassName="AudioTranscriptMetadata" syncable="YES" codeGenerationType="category">
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="duration" optional="YES" attributeType="Double" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="filename" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="language" optional="YES" attributeType="String"/>
+        <attribute name="processed" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <relationship name="createdBy" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Member" inverseName="transcripts" inverseEntity="Member"/>
+        <relationship name="fromGroup" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GroupChatInfo" inverseName="associatedTranscripts" inverseEntity="GroupChatInfo"/>
+    </entity>
+    <entity name="Category" representedClassName="Category" syncable="YES" codeGenerationType="category">
+        <attribute name="color" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <relationship name="tasks" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="StudyPalTask" inverseName="category" inverseEntity="StudyPalTask"/>
+    </entity>
+    <entity name="Course" representedClassName="Course" syncable="YES" codeGenerationType="category">
+        <attribute name="courseDescription" optional="YES" attributeType="String"/>
+        <attribute name="creditHours" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="department" optional="YES" attributeType="String"/>
+        <attribute name="gradingScale" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="instructors" optional="YES" attributeType="String"/>
+        <attribute name="prerequisites" optional="YES" attributeType="String"/>
+        <attribute name="semesterOffered" optional="YES" attributeType="String"/>
+        <attribute name="title" optional="YES" attributeType="String"/>
+        <attribute name="website" optional="YES" attributeType="String"/>
+        <relationship name="groups" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GroupChatInfo" inverseName="associatedCourse" inverseEntity="GroupChatInfo"/>
+        <relationship name="university" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="University" inverseName="courses" inverseEntity="University"/>
+    </entity>
+    <entity name="GroupChatInfo" representedClassName="GroupChatInfo" syncable="YES" codeGenerationType="category">
+        <attribute name="adminIds" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="groupImageURL" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="isPrivate" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="lastActivity" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="messageCount" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <relationship name="associatedCourse" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Course" inverseName="groups" inverseEntity="Course"/>
+        <relationship name="associatedNotes" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AINotesMetadata" inverseName="fromGroup" inverseEntity="AINotesMetadata"/>
+        <relationship name="associatedTasks" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="StudyPalTask" inverseName="fromGroup" inverseEntity="StudyPalTask"/>
+        <relationship name="associatedTranscripts" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AudioTranscriptMetadata" inverseName="fromGroup" inverseEntity="AudioTranscriptMetadata"/>
+        <relationship name="associatedUniversity" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="University"/>
+        <relationship name="members" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Member" inverseName="groups" inverseEntity="Member"/>
+        <relationship name="messages" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GroupChatMessage" inverseName="fromGroup" inverseEntity="GroupChatMessage"/>
+    </entity>
+    <entity name="GroupChatMessage" representedClassName="GroupChatMessage" syncable="YES" codeGenerationType="category">
+        <attribute name="attachments" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="message" optional="YES" attributeType="String"/>
+        <attribute name="readBy" optional="YES" attributeType="String"/>
+        <attribute name="replyTo" optional="YES" attributeType="String"/>
+        <attribute name="sender" optional="YES" attributeType="String"/>
+        <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="type" optional="YES" attributeType="String"/>
+        <relationship name="fromGroup" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GroupChatInfo" inverseName="messages" inverseEntity="GroupChatInfo"/>
+    </entity>
+    <entity name="Member" representedClassName="Member" syncable="YES" codeGenerationType="category">
+        <attribute name="bio" optional="YES" attributeType="String"/>
+        <attribute name="courses" optional="YES" attributeType="String"/>
+        <attribute name="email" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="joinDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastActive" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="major" optional="YES" attributeType="String"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="phone" optional="YES" attributeType="String"/>
+        <attribute name="profilePictureURL" optional="YES" attributeType="String"/>
+        <attribute name="status" optional="YES" attributeType="String"/>
+        <relationship name="groups" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GroupChatInfo" inverseName="members" inverseEntity="GroupChatInfo"/>
+        <relationship name="notes" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AINotesMetadata" inverseName="createdBy" inverseEntity="AINotesMetadata"/>
+        <relationship name="transcripts" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AudioTranscriptMetadata" inverseName="createdBy" inverseEntity="AudioTranscriptMetadata"/>
+        <relationship name="university" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="University" inverseName="members" inverseEntity="University"/>
+    </entity>
+    <entity name="Profile" representedClassName="Profile" syncable="YES" codeGenerationType="category">
+        <attribute name="affiliation" optional="YES" attributeType="String"/>
+        <attribute name="bio" optional="YES" attributeType="String"/>
+        <attribute name="courses" optional="YES" attributeType="String"/>
+        <attribute name="email" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="joinDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastActive" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="major" optional="YES" attributeType="String"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="notifications" optional="YES" attributeType="String"/>
+        <attribute name="phone" optional="YES" attributeType="String"/>
+        <attribute name="profilePictureURL" optional="YES" attributeType="String"/>
+    </entity>
+    <entity name="StudyPalTask" representedClassName="StudyPalTask" syncable="YES" codeGenerationType="category">
+        <attribute name="completed" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="completionDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="completionNotes" optional="YES" attributeType="String"/>
+        <attribute name="createdBy" optional="YES" attributeType="String"/>
+        <attribute name="dueDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="taskDesc" optional="YES" attributeType="String"/>
+        <attribute name="times" optional="YES" attributeType="String"/>
+        <attribute name="type" optional="YES" attributeType="String"/>
+        <relationship name="category" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Category" inverseName="tasks" inverseEntity="Category"/>
+        <relationship name="fromGroup" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GroupChatInfo" inverseName="associatedTasks" inverseEntity="GroupChatInfo"/>
+    </entity>
+    <entity name="University" representedClassName="University" syncable="YES" codeGenerationType="category">
+        <attribute name="abbreviation" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="location" optional="YES" attributeType="String"/>
+        <attribute name="logoURL" optional="YES" attributeType="String"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="type" optional="YES" attributeType="String"/>
+        <attribute name="website" optional="YES" attributeType="String"/>
+        <relationship name="courses" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Course" inverseName="university" inverseEntity="Course"/>
+        <relationship name="members" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Member" inverseName="university" inverseEntity="Member"/>
+    </entity>
+</model>

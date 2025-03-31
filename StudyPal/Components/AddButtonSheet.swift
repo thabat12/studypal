@@ -68,7 +68,7 @@ struct AddButtonSheet<Content: View>: View {
                     }
                 }
         )
-        .gesture(
+        .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged {_ in
                     

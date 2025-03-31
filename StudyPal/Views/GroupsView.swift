@@ -17,11 +17,15 @@ class GroupChatViewModel: ObservableObject {
     @Published var isLoading: Bool = true
     @Published var errorMessage: String? = nil
     
+    init () {
+        print("this got initialized...")
+    }
     /*
      The actual updates to the @Published variables will happen on the main thread because that is where SwiftUI actually does UI updates. If you did this on a background thread, the main thread may never get notified of UI changes and these changes may not actually reflect on the screen.
     */
     @MainActor
     func getAllGroupChats() async {
+        print("get all group chats is called!!!")
         self.isLoading = true
         do {
             let groupChats = try await StudyPalAPI.getAllUserGroupChats()
@@ -42,10 +46,10 @@ class GroupChatViewModel: ObservableObject {
         
     }
     
-    #if DEBUG
+    #if targetEnvironment(simulator)
     @MainActor
     func mockGetAllGroupChats() {
-        groupChats = [
+        self.groupChats = [
             GroupChatInfoModel(name: "Group 1", isPrivate: true, members: ["rohan", "abhinav", "tejas"], recentMessage: "recent message 1"),
             GroupChatInfoModel(name: "Group 2", isPrivate: true, members: ["rohan", "abhinav", "tejas"], recentMessage: "recent message 2"),
             GroupChatInfoModel(name: "Group 3", isPrivate: true, members: ["rohan", "abhinav", "tejas"], recentMessage: "recent message 3"),
@@ -61,13 +65,17 @@ class GroupChatViewModel: ObservableObject {
 
 struct GroupsView: View {
     
-    @ObservedObject private var viewModel = GroupChatViewModel()
+    @StateObject private var viewModel = GroupChatViewModel()
     @State private var expandedBinding: Bool = false
+    @EnvironmentObject private var appState: AppState
     
     var body: some View {
         ZStack(alignment: .center) {
-            if viewModel.isLoading {
-                ProgressView("Loading...")
+            if false {
+                Text("so this should never appear here!")
+            }
+            else if viewModel.isLoading == true {
+                ProgressView("Loading... and value is \(viewModel.isLoading)")
                     .progressViewStyle(CircularProgressViewStyle())
                     .padding()
             } else if let errorMessage = viewModel.errorMessage {
@@ -92,15 +100,21 @@ struct GroupsView: View {
                         print("pressed")
                     }
                 }
+                .id(viewModel.groupChats.count)
                 
                 ZStack(alignment: .bottomTrailing) {
                     Color.clear
                     
                     AddButtonSheet(padding: 15, expandedBinding: $expandedBinding) {
                         VStack(alignment: .center) {
-                            Text("Create Group")
-                                .foregroundStyle(Color.white)
-                                .padding(.vertical, 5)
+                            NavigationLink {
+                                CreateGroupView()
+                            } label: {
+                                Text("Create Group")
+                                    .foregroundStyle(Color.white)
+                                    .padding(.vertical, 5)
+                            }
+                            
                             Divider()
                             Text("Join Group")
                                 .foregroundStyle(Color.white)
@@ -123,13 +137,11 @@ struct GroupsView: View {
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            Task {
-                #if DEBUG
-                viewModel.mockGetAllGroupChats()
-                #else
-                await viewModel.getAllGroupChats()
-                #endif
-            }
+            #if targetEnvironment(simulator)
+            viewModel.mockGetAllGroupChats()
+            #else
+            await viewModel.getAllGroupChats()
+            #endif
         }
     }
 }

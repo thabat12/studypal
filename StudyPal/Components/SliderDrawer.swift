@@ -30,7 +30,9 @@ struct SliderDrawer: View {
             .onTapGesture {
                 withAnimation {
                     logoutPressed = true
+                    
                     logoutAction()
+                    
                     // After some delay, you can change the state again
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                         logoutPressed = false

@@ -9,14 +9,23 @@ import SwiftUI
 import FirebaseAuth
 import GoogleSignIn
 
+
+class AppState: ObservableObject {
+    @Published var showTab = true
+}
 @main
 struct StudyPalApp: App {
     // Application lifecycle binding
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject var appState = AppState()
 
     var body: some Scene {
         WindowGroup {
             RootView()
+            // The CoreDataStack view context is now embedded into the environment
+            // We probably won't use this except for convenience since you can just rely on the static shared variables directly anyways
+            .environment(\.managedObjectContext, CoreDataStack.shared.persistentContainer.viewContext)
+            .environmentObject(appState)
         }
     }
 }
@@ -41,6 +50,12 @@ struct RootView: View {
         // Credit: https://medium.com/@matteocuzzolin/google-sign-in-with-firebase-in-swiftui-app-c8dc7b7ed4f9
         .onAppear{
             //Firebase state change listeneer
+            #if targetEnvironment(simulator)
+            
+            userLoggedIn = true
+            
+            #else
+            
             Auth.auth().addStateDidChangeListener{ auth, user in
                 if (user != nil) {
                     userLoggedIn = true
@@ -48,6 +63,8 @@ struct RootView: View {
                     userLoggedIn = false
                 }
             }
+            
+            #endif
         }
     }
 }
@@ -58,6 +75,10 @@ struct MainView: View {
      */
     @State var activeTab: TabItem = .home
     @State var drawerOffset: CGFloat = -250
+    @EnvironmentObject private var appState: AppState
+    @State private var showNavigationTab = true
+    
+    
     var body: some View {
         /*
          TabView: You may pass this `activeTab` state variable as a reference as selection for TabView, and every time that the navigation bar changes its activeTab binding reference, the TabView will dynamically set the content of the screen to that view because it is a State variable.
@@ -85,6 +106,7 @@ struct MainView: View {
             
             // The $ sign allows the AnimatedTabBar to set the reference of `activeTab`, and that reference points to the @State variable that is in StudyPalApp. Every time that this reference changes, the tab will shift too.
             AnimatedTabBar(activeTab: $activeTab)
+                .offset(CGSize(width: 0, height: showNavigationTab ? 0.0 : 90.0))
             
             SliderDrawer(width: 250, logoutAction: {
                 Task {
@@ -93,6 +115,11 @@ struct MainView: View {
             })
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .offset(x: drawerOffset)
+        }
+        .onChange(of: appState.showTab) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showNavigationTab.toggle()
+            }
         }
         .gesture(
             DragGesture()
