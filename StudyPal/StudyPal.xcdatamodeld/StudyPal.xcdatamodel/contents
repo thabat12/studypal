@@ -6,7 +6,7 @@
         <attribute name="id" optional="YES" attributeType="String"/>
         <relationship name="createdBy" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Member" inverseName="notes" inverseEntity="Member"/>
         <relationship name="fromGroup" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GroupChatInfo" inverseName="associatedNotes" inverseEntity="GroupChatInfo"/>
-        <relationship name="fromTranscript" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AudioTranscriptMetadata"/>
+        <relationship name="fromTranscript" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AudioTranscriptMetadata" inverseName="generatedNotes" inverseEntity="AudioTranscriptMetadata"/>
     </entity>
     <entity name="AttachmentRepresentable" representedClassName="AttachmentRepresentable" syncable="YES" codeGenerationType="category">
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -19,7 +19,7 @@
         <attribute name="isDownloaded" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="type" optional="YES" attributeType="String"/>
         <attribute name="width" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
-        <relationship name="createdBy" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Member"/>
+        <relationship name="createdBy" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Member" inverseName="attachments" inverseEntity="Member"/>
     </entity>
     <entity name="AudioTranscriptMetadata" representedClassName="AudioTranscriptMetadata" syncable="YES" codeGenerationType="category">
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -30,6 +30,7 @@
         <attribute name="processed" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <relationship name="createdBy" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Member" inverseName="transcripts" inverseEntity="Member"/>
         <relationship name="fromGroup" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GroupChatInfo" inverseName="associatedTranscripts" inverseEntity="GroupChatInfo"/>
+        <relationship name="generatedNotes" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="AINotesMetadata" inverseName="fromTranscript" inverseEntity="AINotesMetadata"/>
     </entity>
     <entity name="Category" representedClassName="Category" syncable="YES" codeGenerationType="category">
         <attribute name="color" optional="YES" attributeType="String"/>
@@ -64,7 +65,7 @@
         <relationship name="associatedNotes" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AINotesMetadata" inverseName="fromGroup" inverseEntity="AINotesMetadata"/>
         <relationship name="associatedTasks" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="StudyPalTask" inverseName="fromGroup" inverseEntity="StudyPalTask"/>
         <relationship name="associatedTranscripts" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AudioTranscriptMetadata" inverseName="fromGroup" inverseEntity="AudioTranscriptMetadata"/>
-        <relationship name="associatedUniversity" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="University"/>
+        <relationship name="associatedUniversity" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="University" inverseName="groups" inverseEntity="University"/>
         <relationship name="members" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Member" inverseName="groups" inverseEntity="Member"/>
         <relationship name="messages" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GroupChatMessage" inverseName="fromGroup" inverseEntity="GroupChatMessage"/>
     </entity>
@@ -91,6 +92,7 @@
         <attribute name="phone" optional="YES" attributeType="String"/>
         <attribute name="profilePictureURL" optional="YES" attributeType="String"/>
         <attribute name="status" optional="YES" attributeType="String"/>
+        <relationship name="attachments" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="AttachmentRepresentable" inverseName="createdBy" inverseEntity="AttachmentRepresentable"/>
         <relationship name="groups" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GroupChatInfo" inverseName="members" inverseEntity="GroupChatInfo"/>
         <relationship name="notes" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AINotesMetadata" inverseName="createdBy" inverseEntity="AINotesMetadata"/>
         <relationship name="transcripts" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AudioTranscriptMetadata" inverseName="createdBy" inverseEntity="AudioTranscriptMetadata"/>
@@ -133,6 +135,7 @@
         <attribute name="type" optional="YES" attributeType="String"/>
         <attribute name="website" optional="YES" attributeType="String"/>
         <relationship name="courses" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Course" inverseName="university" inverseEntity="Course"/>
+        <relationship name="groups" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="GroupChatInfo" inverseName="associatedUniversity" inverseEntity="GroupChatInfo"/>
         <relationship name="members" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Member" inverseName="university" inverseEntity="Member"/>
     </entity>
 </model>

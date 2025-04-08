@@ -116,6 +116,27 @@ struct HomeView: View {
                         geometry in
                         
                         VStack(alignment: .center) {
+                            NavigationLink {
+                                TimerView()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "timer")
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(width: 20, height: 20)
+                                        .foregroundColor(.blue)
+                                    
+                                    Text("Start Focus Timer")
+                                        .foregroundColor(.primary)
+                                }
+                                .padding()
+                                .frame(width: geometry.size.width / 7 * 5)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(Color.blue, lineWidth: 1)
+                                )
+                            }
+                            
                             Button(action: {}) {
                                 Text("Start a Study Session")
                                     .padding()

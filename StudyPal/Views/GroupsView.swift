@@ -140,7 +140,9 @@ struct GroupsView: View {
             #if targetEnvironment(simulator)
             viewModel.mockGetAllGroupChats()
             #else
-            await viewModel.getAllGroupChats()
+            Task {
+                await viewModel.getAllGroupChats()
+            }
             #endif
         }
     }
