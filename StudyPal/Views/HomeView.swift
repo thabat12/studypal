@@ -160,12 +160,6 @@ struct HomeView: View {
                                             .stroke(Color.primary, lineWidth: 1)
                                     )
                             }
-                            
-                            NavigationLink {
-                                GroupChatView(groupChatId: "something")
-                            } label: {
-                                Text("this is the group chat view")
-                            }
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
