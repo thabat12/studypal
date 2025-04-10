@@ -19,30 +19,38 @@ struct TaskItem: View {
     public var taskGroup: String = "ios group"
     public var taskType: String
     @Binding var taskCompleted: Bool
+    var onTaskTap: (() -> Void)? = nil
     
     var body: some View {
         HStack(alignment: .center) {
             HStack(alignment: .top) {
-                if !taskCompleted {
-                    Image(systemName: "checkmark.circle")
+                // Checkbox with its own tap area
+                Button(action: {
+                    // Toggle the task completion state
+                    taskCompleted.toggle()
+                }) {
+                    Image(systemName: taskCompleted ? "checkmark.circle.fill" : "checkmark.circle")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 25, height: 25, alignment: .top)
-                        .opacity(!taskCompleted ? 1 : 0)
+                        .foregroundColor(taskCompleted ? .green : .accentColor)
                 }
-                else {
-                    Image(systemName: "checkmark.circle.fill")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 25, height: 25, alignment: .top)
-                        .opacity(taskCompleted ? 1 : 0)
-                }
+                .buttonStyle(BorderlessButtonStyle())
                 
-                // The title stuff
+                // The title stuff - this area is tappable for editing
                 VStack(alignment: .leading) {
                     Text(taskName)
                         .fontWeight(.semibold)
+                        .strikethrough(taskCompleted)
+                        .foregroundColor(taskCompleted ? .gray : .primary)
                     Text(taskGroup)
+                        .foregroundColor(taskCompleted ? .gray : .primary)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if let onTaskTap = onTaskTap {
+                        onTaskTap()
+                    }
                 }
                 
                 Spacer()
@@ -53,16 +61,15 @@ struct TaskItem: View {
         }
         .padding(.vertical, 5)
         .padding(.horizontal)
-        .contentShape(.rect())
-        .onTapGesture {
-            withAnimation {
-                taskCompleted = !taskCompleted
-            }
-        }
     }
 }
 
 #Preview {
     @Previewable @State var taskCompleted: Bool = false
-    TaskItem(taskName: "Task Name", taskType: "Group Activity", taskCompleted: $taskCompleted)
+    TaskItem(
+        taskName: "Task Name", 
+        taskType: "Group Activity", 
+        taskCompleted: $taskCompleted,
+        onTaskTap: { print("Task tapped for editing") }
+    )
 }

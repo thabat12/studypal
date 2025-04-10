@@ -1,41 +1,53 @@
 //
-//  AddTaskView.swift
+//  EditTaskView.swift
 //  StudyPal
 //
-//  Created by Abhi Bichal on 3/30/25.
+//  Created by StudyPal on 4/15/25.
 //
 
 import SwiftUI
+import CoreData
 
-
-enum FormFieldFocus: Hashable {
-    case taskName, description, category, done
-}
-
-struct AddTaskView: View {
+struct EditTaskView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var navigationPath = NavigationPath()
-    @State private var taskName = ""
-    @State private var taskDesc = ""
+    @State private var taskName: String
+    @State private var taskDesc: String
     @State private var taskCategoryNew = ""
-    @State private var selectedTime = Date()
-    @State private var selectedDate = Date()
-    @State private var isAllDay = false
+    @State private var selectedDate: Date
+    @State private var isAllDay: Bool
     @State private var isSaving = false
     @State private var errorMessage: String? = nil
-    @State private var selectedCategory: String? = nil
+    @State private var selectedCategory: String?
+    @State private var showDeleteConfirmation = false
     @FocusState private var focused: FormFieldFocus?
     
-    // Add TaskViewModel
-    @StateObject private var taskViewModel = TaskViewModel()
+    let task: StudyPalTask
+    private let taskViewModel: TaskViewModel
     
     // Categories from Core Data
-    @State var categories: [CategoryUIModel] = []
+    @State private var categories: [CategoryUIModel] = []
+    
+    init(task: StudyPalTask, taskViewModel: TaskViewModel) {
+        self.task = task
+        self.taskViewModel = taskViewModel
         
+        // Initialize state with task values
+        _taskName = State(initialValue: task.name ?? "")
+        _taskDesc = State(initialValue: task.taskDesc ?? "")
+        _selectedDate = State(initialValue: task.dueDate ?? Date())
+        _isAllDay = State(initialValue: task.isAllDay)
+        _selectedCategory = State(initialValue: task.category?.name)
+    }
+    
     var body: some View {
         ScrollView {
             VStack() {
+                Text("Task")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, 5)
                 
                 TextField("Task Name", text: $taskName)
                     .padding()
@@ -118,10 +130,6 @@ struct AddTaskView: View {
                     .padding(.top, 10)
                 }
                 
-                DropdownMenuDisclosure(title: "Groups") {
-                    Text("nothing here for now")
-                }
-                
                 if let errorMessage = errorMessage {
                     Text(errorMessage)
                         .foregroundColor(.red)
@@ -130,9 +138,9 @@ struct AddTaskView: View {
                 
                 Spacer(minLength: 70)
                 
-                HStack(alignment: .top) {
+                HStack(alignment: .top, spacing: 20) {
                     Button(action: {
-                        saveTask()
+                        updateTask()
                     }) {
                         if isSaving {
                             ProgressView()
@@ -143,6 +151,17 @@ struct AddTaskView: View {
                     }
                     .disabled(taskName.isEmpty || isSaving)
                     .buttonStyle(.borderedProminent)
+                    
+                    Button(action: {
+                        showDeleteConfirmation = true
+                    }) {
+                        Text("Delete")
+                            .padding()
+                            .foregroundColor(.white)
+                    }
+                    .background(Color.red)
+                    .cornerRadius(8)
+                    .disabled(isSaving)
                 }
                 .frame(maxHeight: 100)
             }
@@ -153,14 +172,41 @@ struct AddTaskView: View {
         .scrollDismissesKeyboard(.interactively)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("Edit Task")
+                    .font(.headline)
+            }
+        }
+        .confirmationDialog(
+            "Delete Task",
+            isPresented: $showDeleteConfirmation
+        ) {
+            SwiftUI.Button("Delete", role: .destructive) {
+                if let id = task.id {
+                    deleteTask(id: id)
+                }
+            }
+            SwiftUI.Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Are you sure you want to delete this task?")
+        }
         .onAppear {
             focused = FormFieldFocus.taskName
             appState.showTab = false
             categories = taskViewModel.convertToCategoryUIModels()
+            
+            // Pre-select the current category if it exists
+            if let categoryName = task.category?.name {
+                selectedCategory = categoryName
+            }
+        }
+        .onDisappear {
+            appState.showTab = true
         }
     }
     
-    private func saveTask() {
+    private func updateTask() {
         guard !taskName.isEmpty else { return }
         
         isSaving = true
@@ -175,29 +221,59 @@ struct AddTaskView: View {
         }
         
         Task {
-            let success = await taskViewModel.createTask(
-                name: taskName,
-                description: taskDesc.isEmpty ? nil : taskDesc,
-                dueDate: selectedDate,
-                isAllDay: isAllDay,
-                categoryName: finalCategoryName,
-                categoryColor: "blue" // Default color, could be enhanced
-            )
+            do {
+                if let taskId = task.id {
+                    let _ = try await TaskService.shared.updateTask(
+                        taskId: taskId,
+                        name: taskName,
+                        description: taskDesc.isEmpty ? nil : taskDesc,
+                        dueDate: selectedDate,
+                        isAllDay: isAllDay,
+                        categoryName: finalCategoryName
+                    )
+                    
+                    // Reload tasks after update
+                    taskViewModel.loadTasks()
+                    
+                    await MainActor.run {
+                        isSaving = false
+                        dismiss()
+                    }
+                } else {
+                    await MainActor.run {
+                        isSaving = false
+                        errorMessage = "Cannot update task: Missing task ID"
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isSaving = false
+                    errorMessage = "Failed to update task: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+    
+    private func deleteTask(id: String) {
+        isSaving = true
+        
+        Task {
+            let success = await taskViewModel.deleteTask(taskId: id)
             
             await MainActor.run {
                 isSaving = false
-                
                 if success {
                     dismiss()
-                    appState.showTab = true
                 } else {
-                    errorMessage = "Failed to save task. Please try again."
+                    errorMessage = "Failed to delete task. Please try again."
                 }
             }
         }
     }
 }
 
+// Simple mock preview that avoids CoreData initialization
 #Preview {
-    AddTaskView()
-}
+    Text("EditTaskView Preview - Unable to initialize CoreData in preview")
+        .padding()
+} 
