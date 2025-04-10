@@ -7,6 +7,40 @@
 
 import SwiftUI
 
+struct GroupChatInfoModel: Identifiable {
+    let id: String
+    let name: String?
+    let isPrivate: Bool?
+    let members: [String]?
+    let recentMessage: String?
+    
+    init(name: String? = nil,
+        isPrivate: Bool? = nil,
+        members: [String]? = nil,
+        recentMessage: String? = nil) {
+        
+        self.name = name
+        self.isPrivate = isPrivate
+        self.members = members
+        self.recentMessage = recentMessage
+        
+        self.id = UUID().uuidString // helps with firebase compatibility
+    }
+    
+    init(dictionary: [String: Any]) throws {
+        
+        self.name = dictionary["name"] as? String
+        self.isPrivate = dictionary["isPrivate"] as? Bool
+        self.members = dictionary["members"] as? [String]
+        self.recentMessage = dictionary["recentMessage"] as? String
+        
+        // the id is the only thing i need for the UI to work properly
+        guard let uuidString = dictionary["id"] as? String else { throw GroupChatDataModelErrors.failedToParseDocument }
+        self.id = uuidString
+    }
+}
+
+
 /*
  The GroupChatViewModel communicates with the "StudyPal API" to gather all the active groups chats that the user is in.
  
@@ -25,11 +59,19 @@ class GroupChatViewModel: ObservableObject {
     */
     @MainActor
     func getAllGroupChats() async {
-        print("get all group chats is called!!!")
         self.isLoading = true
         do {
             let groupChats = try await StudyPalAPI.getAllUserGroupChats()
-            self.groupChats = groupChats
+            self.groupChats = groupChats.map {
+                groupChatDict in
+                do {
+                    let res = try GroupChatInfoModel(dictionary: groupChatDict)
+                    return res
+                } catch {
+                    return GroupChatInfoModel(name: "error")
+                }
+
+            }
             self.errorMessage = nil
         } catch FirebaseAPIErrors.errorParsingFirestoreDocument {
             self.errorMessage = "Internal app error"
@@ -69,6 +111,8 @@ struct GroupsView: View {
     @State private var expandedBinding: Bool = false
     @EnvironmentObject private var appState: AppState
     
+    @State private var navPath = NavigationPath()
+    
     var body: some View {
         ZStack(alignment: .center) {
             if false {
@@ -83,24 +127,60 @@ struct GroupsView: View {
                     .padding()
                     .foregroundStyle(Color.red)
             } else {
-                List(viewModel.groupChats) { groupChat in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(groupChat.name!)
-                                .font(.title2)
+                
+                ScrollView {
+                    VStack {
+                        ForEach(viewModel.groupChats) {
+                            groupChat in
                             
-                            Text(groupChat.recentMessage ?? "Nothing here yet!")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
+                            NavigationLink {
+                                GroupChatView(groupChatId: groupChat.id)
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        Text(groupChat.name!)
+                                            .font(.title2)
+        
+                                        Text(groupChat.recentMessage ?? "Nothing here yet!")
+                                            .font(.subheadline)
+                                            .foregroundColor(.gray)
+                                    }
+        
+                                    Spacer()
+                                }
+                                .padding()
+                                .contentShape(Rectangle())
+                            }
+                            .contentShape(Rectangle())
                         }
-                        
-                        Spacer()
                     }
-                    .onTapGesture {
-                        print("pressed")
-                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.gray.opacity(0.6))
+                    )
+                    .padding(.horizontal, 20)
                 }
-                .id(viewModel.groupChats.count)
+                
+                // TODO: Why is this not working??
+//                List(viewModel.groupChats) { groupChat in
+//                    NavigationLink {
+//                        GroupChatView(groupChatId: groupChat.id)
+//                    } label: {
+//                        HStack {
+//                            VStack(alignment: .leading, spacing: 10) {
+//                                Text(groupChat.name!)
+//                                    .font(.title2)
+//                                
+//                                Text(groupChat.recentMessage ?? "Nothing here yet!")
+//                                    .font(.subheadline)
+//                                    .foregroundColor(.gray)
+//                            }
+//                            
+//                            Spacer()
+//                        }
+//                    }
+//                    .contentShape(Rectangle())
+//                }
                 
                 ZStack(alignment: .bottomTrailing) {
                     Color.clear
@@ -137,10 +217,14 @@ struct GroupsView: View {
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
+            self.appState.showTab = true
+            
             #if targetEnvironment(simulator)
             viewModel.mockGetAllGroupChats()
             #else
-            await viewModel.getAllGroupChats()
+            Task {
+                await viewModel.getAllGroupChats()
+            }
             #endif
         }
     }

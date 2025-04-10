@@ -133,6 +133,12 @@ struct HomeView: View {
                                     .padding()
                                     .frame(width: geometry.size.width / 7 * 5)
                             }
+                            
+                            NavigationLink {
+                                GroupChatView(groupChatId: "something")
+                            } label: {
+                                Text("this is the group chat view")
+                            }
                         }
                         .frame(maxWidth: .infinity)
                     }

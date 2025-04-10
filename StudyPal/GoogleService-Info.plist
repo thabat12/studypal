@@ -3,21 +3,21 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>395618881816-hged0a5n6e0qqlflidn1mdc6hnvnqsn9.apps.googleusercontent.com</string>
+	<string>229272733178-uf10rp7fj6vm2db3oh9qdl3snbs9ulps.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.395618881816-hged0a5n6e0qqlflidn1mdc6hnvnqsn9</string>
+	<string>com.googleusercontent.apps.229272733178-uf10rp7fj6vm2db3oh9qdl3snbs9ulps</string>
 	<key>API_KEY</key>
-	<string>AIzaSyBkRLMGC9BHpnXQdnTAPsa9mgAKj29sPsQ</string>
+	<string>AIzaSyCfH1wlon1ZBJN5Oqeke_xKLHKdQ__qzds</string>
 	<key>GCM_SENDER_ID</key>
-	<string>395618881816</string>
+	<string>229272733178</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>iosproject.StudyPal</string>
 	<key>PROJECT_ID</key>
-	<string>studypal-8dcaa</string>
+	<string>newstudypalapp</string>
 	<key>STORAGE_BUCKET</key>
-	<string>studypal-8dcaa.firebasestorage.app</string>
+	<string>newstudypalapp.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -29,6 +29,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:395618881816:ios:0dee6abee0a2b6336ece6d</string>
+	<string>1:229272733178:ios:8e7e6929cf3bbce510d043</string>
 </dict>
 </plist>

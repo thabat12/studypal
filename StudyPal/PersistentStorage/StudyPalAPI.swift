@@ -6,6 +6,7 @@
 //
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseStorage
 
 // MARK: FirebaseAPIErrors
 enum FirebaseAPIErrors: Error {
@@ -14,6 +15,13 @@ enum FirebaseAPIErrors: Error {
     case errorParsingFirestoreDocument
     case userAlreadyInGroup
     case groupChatNotFound
+    case userNotInitializedOnDatabase
+}
+
+// MARK: FileTypes
+enum Filetypes {
+    case notes
+    case image
 }
 
 // MARK: StudyPalAPI
@@ -27,46 +35,95 @@ class StudyPalAPI {
         return Firestore.firestore()
     }()
     
+    static private var storage: Storage = {
+        return Storage.storage()
+    }()
+    
+    // Prevent anything from initializing this API service
+    private init() { }
+    
+    // MARK: getUid
+    static func getUid() async throws -> String {
+        guard let uid = Auth.auth().currentUser?.uid else {
+            throw FirebaseAPIErrors.userNotSignedIn
+        }
+        
+        return uid
+    }
     
     // MARK: updateUserDetailsFirestore
-    static func updateUserDetailsFirestore() async throws -> Bool {
+    static func updateUserDetailsFirestore() async -> Bool {
+        
         // Writes a fresh copy of the user's details to Cloud Firestore, potentially updating any relevant metadata.
-        if let user = Auth.auth().currentUser {
-            do {
+        guard let user = Auth.auth().currentUser else { return false }
+        
+        do {
+            @ServerTimestamp var createdAt: Timestamp?
+            let userDocRef = StudyPalAPI.db.collection("users").document(user.uid)
             
-                try await StudyPalAPI.db.collection("users").addDocument(data: [
+            let document = try await userDocRef.getDocument()
+            
+            // Create a new user if not existing already
+            if !document.exists {
+                try await userDocRef.setData([
                     "id": user.uid,
-                    "displayName": user.displayName ?? "Unknown"
+                    "displayName": user.displayName ?? "",
+                    "createdAt": createdAt!,
+                    "lastActive": createdAt!,
+                    "email": user.email ?? "",
+                    "courses": [],
+                    "bio": "",
+                    "affiliation": ""
                 ])
-                
-                return true
-            } catch {
-                throw FirebaseAPIErrors.firebaseFunctionFailed
             }
-            
-        } else {
+            // update any active fields
+            else {
+                try await userDocRef.setData([
+                    "id": user.uid,
+                    "displayName": user.displayName ?? "",
+                    "lastActive": createdAt!,
+                    "email": user.email ?? "",
+                    "courses": [],
+                    "bio": "",
+                    "affiliation": ""
+                ], merge: true)
+            }
+        } catch {
             return false
         }
         
+        return true
     }
     
     // MARK: createGroupChat
-    static func createGroupChat(groupChatName: String, privacySetting: Bool) async throws -> Void {
-        if let uid = Auth.auth().currentUser?.uid {
-            
+    static func createGroupChat(
+        groupChatName: String,
+        groupDescription: String,
+        privacySetting: Bool) async throws -> Bool {
+        
+        guard let uid = Auth.auth().currentUser?.uid else {
+            throw FirebaseAPIErrors.userNotSignedIn
+        }
+        
+        do {
+            // create the group chat regardless - each one has its own unique document ID
             let groupChatRef = StudyPalAPI.db.collection("groupChats").document()
             
             try await groupChatRef.setData([
-                "id": groupChatRef.documentID, // firebase-generated ID is probably safer anyways
+                "id": groupChatRef.documentID,
+                "adminId": uid,
                 "name": groupChatName,
+                "description": groupDescription,
                 "isPrivate": privacySetting,
                 "members": [uid],
-                "recentMessage": NSNull()
+                "recentMessage": NSNull(),
+                "messageCount": 0
             ])
-            
-        } else {
-            throw FirebaseAPIErrors.userNotSignedIn
+        } catch {
+            return false
         }
+        
+        return true
     }
     
     
@@ -75,94 +132,138 @@ class StudyPalAPI {
         guard let uid = Auth.auth().currentUser?.uid else {
             throw FirebaseAPIErrors.userNotSignedIn
         }
-        let groupChatRef = self.db.collection("groupChats").document(groupChatId)
-        let documentSnapshot = try await groupChatRef.getDocument()
         
-        if documentSnapshot.exists {
-            let groupChatData = documentSnapshot.data()
-            var members = groupChatData?["members"] as? [String] ?? []
-            if !members.contains(uid) {
-                members.append(uid)
-                try await groupChatRef.updateData([
-                    "members": members
-                ])
-                return true
-            } else {
-                throw FirebaseAPIErrors.userAlreadyInGroup
-            }
-        } else {
-            throw FirebaseAPIErrors.groupChatNotFound
+        let groupChatRef = self.db.collection("groupChats").document(groupChatId)
+        
+        do {
+            let groupChatDoc = try await groupChatRef.getDocument()
+            guard groupChatDoc.exists else { return false }
+            
+            try await groupChatRef.setData([
+                "members": FieldValue.arrayUnion([uid])
+            ], merge: true)
+            
+        } catch {
+            return false
         }
+        
+        return true
     }
     
     // MARK: getAllGroupChats
-    static func getAllGroupChats(limit: Int = 20) async throws -> [GroupChatInfoModel] {
-        print("get all group chats")
-        if let _ = Auth.auth().currentUser?.uid {
-            let groupChatsRef = StudyPalAPI.db.collection("groupChats")
-            let snapshotQuery = try await groupChatsRef.whereField("isPrivate", isEqualTo: false).limit(to: limit).getDocuments()
-            var groupChats: [GroupChatInfoModel] = []
-            for document in snapshotQuery.documents {
-                print(document.data())
-                if let groupChat = try GroupChatInfoModel(dictionary: document.data()) {
-                    groupChats.append(groupChat)
-                } else {
-                    throw FirebaseAPIErrors.errorParsingFirestoreDocument
-                }
+    static func getAllGroupChats(limit: Int = 20) async throws -> [[String: Any]] {
+        
+        guard let uid = Auth.auth().currentUser?.uid else {
+            throw FirebaseAPIErrors.userNotSignedIn
+        }
+        
+        let groupChatsRef = StudyPalAPI.db.collection("groupChats")
+        
+        do {
+            let snapshotDocuments = try await groupChatsRef.whereField("isPrivate", isEqualTo: false).limit(to: limit).getDocuments()
+            
+            var documentData: [[String: Any]] = []
+            
+            for document in snapshotDocuments.documents {
+                documentData.append(document.data())
             }
             
-            return groupChats
-            
-        } else {
-            throw FirebaseAPIErrors.userNotSignedIn
+            return documentData
+        } catch {
+            throw FirebaseAPIErrors.errorParsingFirestoreDocument
         }
     }
     
     // MARK: getAllUserGroupChats
-    static func getAllUserGroupChats() async throws -> [GroupChatInfoModel] {
-        if let uid = Auth.auth().currentUser?.uid {
+    static func getAllUserGroupChats() async throws -> [[String: Any]] {
+        
+        guard let uid = Auth.auth().currentUser?.uid else {
+            throw FirebaseAPIErrors.userNotSignedIn
+        }
+        
+        let groupChatsRef = StudyPalAPI.db.collection("groupChats")
+        
+        do {
+            let snapshotDocuments = try await groupChatsRef.whereField("members", arrayContains: uid).getDocuments()
+            var documentData: [[String: Any]] = []
             
-            let groupChatsRef = StudyPalAPI.db.collection("groupChats")
-            let snapshotQuery = try await groupChatsRef.whereField("members", arrayContains: uid).getDocuments()
-            
-            var groupChats: [GroupChatInfoModel] = []
-            
-            for document in snapshotQuery.documents {
-                if let groupChat = try GroupChatInfoModel(dictionary: document.data()) {
-                    groupChats.append(groupChat)
-                } else {
-                    throw FirebaseAPIErrors.errorParsingFirestoreDocument
-                }
+            for document in snapshotDocuments.documents {
+                documentData.append(document.data())
             }
             
-            return groupChats
-            
-        } else {
-            throw FirebaseAPIErrors.userNotSignedIn
+            return documentData
+        } catch {
+            throw FirebaseAPIErrors.errorParsingFirestoreDocument
         }
     }
     
+    // MARK: uploadFileToBackend
+    static func uploadFileToBackend(
+        data: Data,
+        filename: String,
+        filetype: Filetypes,
+        progressHandler: ((_ snapshot: StorageTaskSnapshot) -> Void)?,
+        successHandler:  ((_ snapshot: StorageTaskSnapshot) -> Void)?,
+        failureHandler:  ((_ snapshot: StorageTaskSnapshot) -> Void)?
+    ) async throws -> Bool {
+        
+        guard let uid = Auth.auth().currentUser?.uid else {
+            throw FirebaseAPIErrors.userNotSignedIn
+        }
+        
+        let userDocRef = StudyPalAPI.db.collection("users").document(uid)
+        
+        do {
+            guard try await userDocRef.getDocument().exists else {
+                throw FirebaseAPIErrors.userNotInitializedOnDatabase
+            }
+            
+            let dataRef = storage.reference(forURL: "users/\(uid)/data/\(filename)")
+            
+            let uploadTask = dataRef.putData(data, metadata: nil)
+            
+            // Register the handlers for the upload task
+            uploadTask.observe(.progress) { progressHandler?($0) }
+            uploadTask.observe(.success)  { successHandler?($0) }
+            uploadTask.observe(.failure)  { failureHandler?($0) }
+        } catch {
+            return false
+        }
+        
+        return true
+    }
+    
     // MARK: sendMessageToGroupChat
-    static func sendMessageToGroupChat(groupChatId: String, message: String) async throws {
-        guard let uid = Auth.auth().currentUser?.uid else { throw FirebaseAPIErrors.userNotSignedIn }
+    static func sendMessageToGroupChat(
+        groupChatId: String,
+        message: String,
+        replyTo: String,
+        attachments: [String]) async throws {
+            
+        guard let uid = Auth.auth().currentUser?.uid else {
+            throw FirebaseAPIErrors.userNotSignedIn
+        }
         
         do {
             let batch = StudyPalAPI.db.batch()
             let groupChatRef = StudyPalAPI.db.collection("groupChats").document(groupChatId)
+            
+            guard try await groupChatRef.getDocument().exists else { throw FirebaseAPIErrors.groupChatNotFound }
+            
             let messageRef = groupChatRef.collection("messages").document()
             
-            let timestamp = FieldValue.serverTimestamp()
             
             let messageData = [
                 "id": messageRef.documentID,
                 "sender": uid,
                 "message": message,
-                "timestamp": timestamp
+                "timestamp": FieldValue.serverTimestamp()
             ] as [String : Any]
             
             let updatedGroupChat = [
+                "messageCount": FieldValue.increment(1.0),
                 "recentMessage": message,
-                "lastUpdated": timestamp
+                "lastUpdated": FieldValue.serverTimestamp()
             ] as [String : Any]
             
             batch.setData(messageData, forDocument: messageRef)
@@ -175,5 +276,70 @@ class StudyPalAPI {
             throw FirebaseAPIErrors.firebaseFunctionFailed
         }
         
+    }
+    
+    static func queryGroupChatMessages(
+        groupChatId: String
+    ) async throws -> [[String: Any]] {
+        
+        guard let uid = Auth.auth().currentUser?.uid else {
+            throw FirebaseAPIErrors.userNotSignedIn
+        }
+        
+        let groupChatRef = self.db.collection("groupChats").document(groupChatId)
+        
+        do {
+            
+            if try await !groupChatRef.getDocument().exists {
+                throw FirebaseAPIErrors.groupChatNotFound
+            }
+            
+            let messageCollectionRef = self.db.collection("groupChats").document(groupChatId).collection("messages")
+            
+            // Query whatever you need
+            let allMessages = try await messageCollectionRef.order(by: "timestamp").getDocuments()
+            
+            return allMessages.documents.map { $0.data() }
+            
+        } catch {
+            throw FirebaseAPIErrors.firebaseFunctionFailed
+        }
+    }
+    
+    // MARK: groupChatMessagesListener
+    static func groupChatMessagesListener(
+        groupChatId: String,
+        onAddedDocuments: @escaping ([DocumentChange]) -> Void
+    ) async throws -> ListenerRegistration {
+        guard let _ = Auth.auth().currentUser?.uid else { throw FirebaseAPIErrors.userNotSignedIn }
+        
+        let groupChatRef = self.db.collection("groupChats").document(groupChatId)
+            
+        do {
+            if try await !groupChatRef.getDocument().exists {
+                throw FirebaseAPIErrors.groupChatNotFound
+            }
+            
+            let messageCollectionRef = self.db.collection("groupChats").document(groupChatId).collection("messages")
+            
+            
+            // Set up the listener
+            let listener = messageCollectionRef.order(by: "timestamp", descending: false).addSnapshotListener { snapshot, error in
+                if let error = error {
+                    print("Error listening for new documents: \(error.localizedDescription)")
+                    return
+                }
+
+                // Bind a document change listener here
+                if let documentChanges = snapshot?.documentChanges {
+                    onAddedDocuments(documentChanges)
+                }
+                
+                }
+            
+            return listener
+        } catch {
+            throw FirebaseAPIErrors.firebaseFunctionFailed
+        }
     }
 }

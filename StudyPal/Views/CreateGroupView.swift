@@ -20,6 +20,9 @@ struct CreateGroupView: View {
     @State private var selectedPrivacy = 0
     @EnvironmentObject private var appState: AppState
     
+    
+    @State var groupChatCreationError = false
+    
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -70,7 +73,22 @@ struct CreateGroupView: View {
             HStack {
                 Button(action: {
                     appState.showTab = true
-                    dismiss()
+                    
+                    Task {
+                        do {
+                            let res = try await StudyPalAPI.createGroupChat(groupChatName: groupNameField, groupDescription: descriptionField, privacySetting: selectedPrivacy == 1)
+                            
+                            
+                            if !res {
+                                self.groupChatCreationError = true
+                            } else {
+                                dismiss()
+                            }
+                        } catch {
+                            self.groupChatCreationError = true
+                        }
+                        
+                    }
                 }) {
                     
                     Text("Create Group")
@@ -84,6 +102,16 @@ struct CreateGroupView: View {
         }
         .padding(15)
         .contentShape(Rectangle())
+        .alert(
+            "Error Creating Group Chat!",
+            isPresented: $groupChatCreationError) {
+            
+                SwiftUI.Button() {
+                    self.groupChatCreationError = false
+                } label: {
+                    Text("OK")
+                }
+        }
         .simultaneousGesture(
             TapGesture()
                 .onEnded {

@@ -85,6 +85,7 @@ struct MainView: View {
          */
         ZStack(alignment: .bottom) {
             TabView(selection: $activeTab) {
+                
                 NavigationStack {
                     HomeView()
                         .navigationTitle("Home")
