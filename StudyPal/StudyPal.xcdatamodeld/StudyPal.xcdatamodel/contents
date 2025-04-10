@@ -104,6 +104,7 @@
         <attribute name="courses" optional="YES" attributeType="String"/>
         <attribute name="email" optional="YES" attributeType="String"/>
         <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="imageData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
         <attribute name="joinDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="lastActive" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="major" optional="YES" attributeType="String"/>
