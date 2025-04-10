@@ -7,7 +7,8 @@
 
 import SwiftUI
 
-struct CategoryUIModel {
+struct CategoryUIModel: Identifiable {
+    var id = UUID()
     var name: String
     var color: Color
     var selected: Bool = false
@@ -16,25 +17,42 @@ struct CategoryUIModel {
 struct CategoryScrollHorizontal: View {
     
     @Binding var categories: [CategoryUIModel]
+    @Binding var selectedCategory: String?
     
     var body: some View {
         
         if categories.count > 0 {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack {
-                    ForEach(categories, id: \.name) { category in
+                    ForEach(0..<categories.count, id: \.self) { index in
                         HStack {
-                            Text(category.name)
+                            Text(categories[index].name)
                             RoundedRectangle(cornerRadius: 10)
                                 .frame(width: 20, height: 20)
-                                .foregroundStyle(category.color)
+                                .foregroundStyle(categories[index].color)
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
+                        .background(
+                            RoundedRectangle(cornerRadius: 15)
+                                .fill(categories[index].selected ? Color.gray.opacity(0.3) : Color.clear)
+                        )
                         .overlay(
                             RoundedRectangle(cornerRadius: 15)
                                 .stroke(Color.gray, lineWidth: 2)
                         )
+                        .onTapGesture {
+                            // Deselect currently selected category if any
+                            if let selectedIndex = categories.firstIndex(where: { $0.selected }) {
+                                categories[selectedIndex].selected = false
+                            }
+                            
+                            // Toggle selected status for tapped category
+                            categories[index].selected.toggle()
+                            
+                            // Update selected category name
+                            selectedCategory = categories[index].selected ? categories[index].name : nil
+                        }
                     }
                 }
                 .padding(.horizontal, 10)
@@ -45,24 +63,23 @@ struct CategoryScrollHorizontal: View {
                     .frame(maxWidth: .infinity, alignment: .center)
             }
         }
-        
-        
     }
 }
 
-#Preview {
-    @Previewable @State var categories: [CategoryUIModel] = {
-        var cat1 = CategoryUIModel(name: "Category 1", color: Color.blue)
-        var cat2 = CategoryUIModel(name: "Category 2", color: Color.red)
-        var cat3 = CategoryUIModel(name: "Category 3", color: Color.green)
-        var cat4 = CategoryUIModel(name: "Category 4", color: Color.yellow)
-        var cat5 = CategoryUIModel(name: "Category 5", color: Color.orange)
-        
-        
-        return [
-            cat1, cat2, cat3, cat4, cat5
+// Preview for development
+struct CategoryScrollHorizontal_Previews: PreviewProvider {
+    static var previews: some View {
+        @State var categories: [CategoryUIModel] = [
+            CategoryUIModel(name: "Category 1", color: Color.blue),
+            CategoryUIModel(name: "Category 2", color: Color.red),
+            CategoryUIModel(name: "Category 3", color: Color.green),
+            CategoryUIModel(name: "Category 4", color: Color.yellow),
+            CategoryUIModel(name: "Category 5", color: Color.orange)
         ]
-    }()
-    
-    CategoryScrollHorizontal(categories: $categories)
+        @State var selectedCategory: String? = nil
+        
+        return CategoryScrollHorizontal(categories: $categories, selectedCategory: $selectedCategory)
+            .previewLayout(.sizeThatFits)
+            .padding()
+    }
 }

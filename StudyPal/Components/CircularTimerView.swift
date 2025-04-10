@@ -17,14 +17,14 @@ struct CircularTimerView: View {
         ZStack {
             // Background circle
             Circle()
-                .stroke(lineWidth: 20)
-                .opacity(0.2)
+                .stroke(lineWidth: 12)
+                .opacity(0.1)
                 .foregroundColor(timerColor)
             
             // Progress circle
             Circle()
                 .trim(from: 0.0, to: CGFloat(progress))
-                .stroke(style: StrokeStyle(lineWidth: 20, lineCap: .round, lineJoin: .round))
+                .stroke(style: StrokeStyle(lineWidth: 12, lineCap: .round, lineJoin: .round))
                 .foregroundColor(timerColor)
                 .rotationEffect(Angle(degrees: 270.0))
                 .animation(.linear, value: progress)

@@ -8,19 +8,12 @@
 import SwiftUI
 import Foundation
 
-// From old repository
-let taskData = [
-    ("IOS Time", "ios group", true),
-    ("Math Homework", "Algebra", false),
-    ("Science Project", "Physics", false),
-    ("Read Book", "Literature", true),
-    ("Workout", "Gym", false),
-    ("Prepare for Exam", "Study", true),
-    ("Coding Practice", "Leetcode", false),
-    ("Write Blog", "Personal", false),
-    ("Grocery Shopping", "Errands", false),
-    ("Meeting", "Work", true)
-]
+// This can be deleted once the Core Data implementation is complete
+struct NoteDataModel: Identifiable {
+    let id: UUID = .init()
+    let name: String
+    let date: String
+}
 
 let notesData = [
     ("Note Entry", "2/14/25"),
@@ -29,31 +22,17 @@ let notesData = [
     ("Note Entry", "2/14/25")
 ]
 
-struct TaskDataModel: Identifiable {
-    var id: UUID = .init()
-    let taskName: String
-    let taskType: String
-    var taskIsFinished: Bool
-}
-
-struct NoteDataModel: Identifiable {
-    let id: UUID = .init()
-    let name: String
-    let date: String
-}
-
-
 struct HomeView: View {
-    
-    @State private var allTasks: [TaskDataModel] = taskData.map { data in
-        TaskDataModel(taskName: data.0, taskType: data.1, taskIsFinished: data.2)
-    }
+    // Replace hardcoded tasks with TaskViewModel
+    @StateObject private var taskViewModel = TaskViewModel()
     
     @State private var allNotes: [NoteDataModel] = notesData.map { note in
         NoteDataModel(name: note.0, date: note.1)
     }
     
     @EnvironmentObject private var appState: AppState
+    @State private var selectedTask: StudyPalTask?
+    @State private var showEditTask = false
     
     var body: some View {
         ScrollView {
@@ -62,9 +41,23 @@ struct HomeView: View {
                 
                 // MARK: Tasks for Today
                 Section {
-                    ForEach($allTasks) {
-                        $task in
-                        TaskItem(taskName: task.taskName, taskType: task.taskType, taskCompleted: $task.taskIsFinished)
+                    if taskViewModel.isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding()
+                    } else if taskViewModel.tasks.isEmpty {
+                        Text("No tasks yet. Add one using the + button above.")
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding()
+                            .foregroundColor(.gray)
+                    } else {
+                        ForEach(taskViewModel.tasks) { task in
+                            TaskItemView(task: task, taskViewModel: taskViewModel, onTap: {
+                                selectedTask = task
+                                showEditTask = true
+                            })
+                                .contentShape(Rectangle())
+                        }
                     }
                 } header: {
                     
@@ -75,7 +68,6 @@ struct HomeView: View {
                                 .font(.system(size: 20))
                             Spacer()
                             
-                            
                             NavigationLink {
                                 AddTaskView()
                             } label: {
@@ -84,7 +76,6 @@ struct HomeView: View {
                                     .aspectRatio(contentMode: .fit)
                                     .frame(width: 20, height: 20)
                             }
-                            
                         }
                     }
                 }
@@ -115,7 +106,7 @@ struct HomeView: View {
                     GeometryReader {
                         geometry in
                         
-                        VStack(alignment: .center) {
+                        VStack(alignment: .center, spacing: 15) {
                             NavigationLink {
                                 TimerView()
                             } label: {
@@ -137,27 +128,43 @@ struct HomeView: View {
                                 )
                             }
                             
-                            Button(action: {}) {
+                            SwiftUI.Button(action: {}) {
                                 Text("Start a Study Session")
+                                    .foregroundColor(.primary)
                                     .padding()
                                     .frame(width: geometry.size.width / 7 * 5)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color.primary, lineWidth: 1)
+                                    )
                             }
                             
-                            Button(action: {}) {
+                            SwiftUI.Button(action: {}) {
                                 Text("Review my Notes")
+                                    .foregroundColor(.primary)
                                     .padding()
                                     .frame(width: geometry.size.width / 7 * 5)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color.primary, lineWidth: 1)
+                                    )
                             }
                             
-                            Button(action: {}) {
+                            SwiftUI.Button(action: {}) {
                                 Text("Record Lecture")
+                                    .foregroundColor(.primary)
                                     .padding()
                                     .frame(width: geometry.size.width / 7 * 5)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color.primary, lineWidth: 1)
+                                    )
                             }
                         }
                         .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
                     }
-                    
+                    .frame(height: 280) // Fixed height to ensure proper spacing
                 } header: {
                     
                     HomeHeader {
@@ -175,6 +182,71 @@ struct HomeView: View {
                 
             }
             .padding(.bottom, 400)
+        }
+        .refreshable {
+            taskViewModel.loadTasks()
+        }
+        .onAppear {
+            taskViewModel.loadTasks()
+        }
+        .navigationDestination(isPresented: $showEditTask) {
+            if let task = selectedTask {
+                EditTaskView(task: task, taskViewModel: taskViewModel)
+            }
+        }
+    }
+}
+
+// MARK: - TaskItemView
+struct TaskItemView: View {
+    let task: StudyPalTask
+    let taskViewModel: TaskViewModel
+    @State private var showConfirmation = false
+    var onTap: () -> Void
+    
+    var body: some View {
+        TaskItem(
+            taskName: task.name ?? "Unnamed Task",
+            taskType: task.category?.name ?? "No Category",
+            taskCompleted: .init(
+                get: { task.completed },
+                set: { newValue in
+                    taskViewModel.toggleTaskCompletion(taskId: task.id ?? "", completed: newValue)
+                }
+            ),
+            onTaskTap: onTap
+        )
+        .id(task.id ?? UUID().uuidString + (task.completed ? "-completed" : "-uncompleted"))
+        .swipeActions {
+            SwiftUI.Button(role: .destructive) {
+                showConfirmation = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        .confirmationDialog(
+            "Delete Task",
+            isPresented: $showConfirmation
+        ) {
+            SwiftUI.Button("Delete", role: .destructive) {
+                if let id = task.id {
+                    Task {
+                        await deleteTask(id: id)
+                    }
+                }
+            }
+            SwiftUI.Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Are you sure you want to delete this task?")
+        }
+    }
+    
+    private func deleteTask(id: String) async {
+        Task {
+            let success = await taskViewModel.deleteTask(taskId: id)
+            if !success {
+                print("Failed to delete task")
+            }
         }
     }
 }

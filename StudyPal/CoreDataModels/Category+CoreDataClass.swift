@@ -11,5 +11,5 @@ import CoreData
 
 @objc(Category)
 public class Category: NSManagedObject {
-
+    // Core Data already provides Identifiable conformance
 }

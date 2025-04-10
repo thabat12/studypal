@@ -85,19 +85,17 @@ struct TimerView: View {
                     viewModel.startTimer()
                 }
             }) {
-                let iconName = viewModel.timerState == .running ? "pause.fill" : "play.fill"
-                
-                Image(systemName: iconName)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 35, height: 35)
-                    .foregroundColor(settings.timerColor)
-            }
-            .padding(20)
-            .background(
                 Circle()
                     .stroke(settings.timerColor, lineWidth: 2)
-            )
+                    .frame(width: 75, height: 75)
+                    .overlay(
+                        Image(systemName: viewModel.timerState == .running ? "pause.fill" : "play.fill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 35, height: 35)
+                            .foregroundColor(settings.timerColor)
+                    )
+            }
             
             // Settings button
             Button(action: {
