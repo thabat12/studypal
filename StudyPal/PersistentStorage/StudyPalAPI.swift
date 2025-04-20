@@ -95,31 +95,76 @@ class StudyPalAPI {
         return true
     }
     
+    // MARK: uploadImageToFirebase
+    static func uploadImageToFirebase(image: UIImage, completion: @escaping (Result<String, Error>) -> Void) {
+        guard let imageData = image.jpegData(compressionQuality: 0.8) else { return }
+        
+        let storageRef = self.storage.reference()
+        let fileName = "group_images/\(UUID().uuidString).jpg"
+        let imageRef = storageRef.child(fileName)
+        
+        imageRef.putData(imageData, metadata: nil) { metadata, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            imageRef.downloadURL { url, error in
+                if let error = error {
+                    completion(.failure(error))
+                } else if let url = url {
+                    completion(.success(url.absoluteString))
+                }
+            }
+        }
+        
+    }
+    
     // MARK: createGroupChat
     static func createGroupChat(
         groupChatName: String,
         groupDescription: String,
-        privacySetting: Bool) async throws -> Bool {
+        privacySetting: Bool,
+        groupImage: UIImage?) async throws -> Bool {
         
         guard let uid = Auth.auth().currentUser?.uid else {
             throw FirebaseAPIErrors.userNotSignedIn
         }
         
         do {
-            // create the group chat regardless - each one has its own unique document ID
-            let groupChatRef = StudyPalAPI.db.collection("groupChats").document()
+            var imageURL: String = ""
+            // First try uploading the image
+            if (groupImage != nil) {
+                
+                uploadImageToFirebase(image: groupImage!) { result in
+                    switch result {
+                    case .success(let url):
+                        imageURL = url
+                        
+                        // Now just populate the group chat reference
+                        let groupChatRef = StudyPalAPI.db.collection("groupChats").document()
+                        
+                        Task {
+                            try await groupChatRef.setData([
+                                "id": groupChatRef.documentID,
+                                "adminId": uid,
+                                "name": groupChatName,
+                                "description": groupDescription,
+                                "imageURL": imageURL,
+                                "isPrivate": privacySetting,
+                                "members": [uid],
+                                "recentMessage": NSNull(),
+                                "messageCount": 0
+                            ])
+                        }
+                    case .failure(let error):
+                        let errorMessage = "failed to upload image: \(error.localizedDescription)"
+                        print(errorMessage)
+                    }
+                }
+            }
             
-            try await groupChatRef.setData([
-                "id": groupChatRef.documentID,
-                "adminId": uid,
-                "name": groupChatName,
-                "description": groupDescription,
-                "isPrivate": privacySetting,
-                "members": [uid],
-                "recentMessage": NSNull(),
-                "messageCount": 0
-            ])
-        } catch {
+        } catch { // TODO: figure out how to rewrite this if you can
             return false
         }
         
@@ -142,6 +187,28 @@ class StudyPalAPI {
             try await groupChatRef.setData([
                 "members": FieldValue.arrayUnion([uid])
             ], merge: true)
+            
+        } catch {
+            return false
+        }
+        
+        return true
+    }
+    
+    // MARK: leaveGroupChat
+    static func leaveGroupChat(groupChatId: String) async throws -> Bool {
+        guard let uid = Auth.auth().currentUser?.uid else {
+            throw FirebaseAPIErrors.userNotSignedIn
+        }
+        
+        let groupChatRef = self.db.collection("groupChats").document(groupChatId)
+        
+        do {
+            let groupChatDoc = try await groupChatRef.getDocument()
+            
+            try await groupChatRef.updateData([
+                "members": FieldValue.arrayRemove([uid])
+            ])
             
         } catch {
             return false
@@ -325,15 +392,15 @@ class StudyPalAPI {
             
             // Set up the listener
             let listener = messageCollectionRef.order(by: "timestamp", descending: false).addSnapshotListener { snapshot, error in
-                if let error = error {
-                    print("Error listening for new documents: \(error.localizedDescription)")
-                    return
-                }
+                    if let error = error {
+                        print("Error listening for new documents: \(error.localizedDescription)")
+                        return
+                    }
 
-                // Bind a document change listener here
-                if let documentChanges = snapshot?.documentChanges {
-                    onAddedDocuments(documentChanges)
-                }
+                    // Bind a document change listener here
+                    if let documentChanges = snapshot?.documentChanges {
+                        onAddedDocuments(documentChanges)
+                    }
                 
                 }
             

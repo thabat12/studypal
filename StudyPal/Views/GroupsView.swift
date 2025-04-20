@@ -13,16 +13,19 @@ struct GroupChatInfoModel: Identifiable {
     let isPrivate: Bool?
     let members: [String]?
     let recentMessage: String?
+    let imageURL: String?
     
     init(name: String? = nil,
         isPrivate: Bool? = nil,
         members: [String]? = nil,
-        recentMessage: String? = nil) {
+        recentMessage: String? = nil,
+        imageURL: String? = nil) {
         
         self.name = name
         self.isPrivate = isPrivate
         self.members = members
         self.recentMessage = recentMessage
+        self.imageURL = imageURL
         
         self.id = UUID().uuidString // helps with firebase compatibility
     }
@@ -33,6 +36,7 @@ struct GroupChatInfoModel: Identifiable {
         self.isPrivate = dictionary["isPrivate"] as? Bool
         self.members = dictionary["members"] as? [String]
         self.recentMessage = dictionary["recentMessage"] as? String
+        self.imageURL = dictionary["imageURL"] as? String
         
         // the id is the only thing i need for the UI to work properly
         guard let uuidString = dictionary["id"] as? String else { throw GroupChatDataModelErrors.failedToParseDocument }
@@ -133,54 +137,14 @@ struct GroupsView: View {
                         ForEach(viewModel.groupChats) {
                             groupChat in
                             
-                            NavigationLink {
-                                GroupChatView(groupChatId: groupChat.id)
-                            } label: {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 10) {
-                                        Text(groupChat.name!)
-                                            .font(.title2)
-        
-                                        Text(groupChat.recentMessage ?? "Nothing here yet!")
-                                            .font(.subheadline)
-                                            .foregroundColor(.gray)
-                                    }
-        
-                                    Spacer()
-                                }
-                                .padding()
-                                .contentShape(Rectangle())
+                            VStack {
+                                GroupTile(groupChat: groupChat)
+                                Divider()
                             }
-                            .contentShape(Rectangle())
                         }
                     }
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.gray.opacity(0.6))
-                    )
                     .padding(.horizontal, 20)
                 }
-                
-                // TODO: Why is this not working??
-//                List(viewModel.groupChats) { groupChat in
-//                    NavigationLink {
-//                        GroupChatView(groupChatId: groupChat.id)
-//                    } label: {
-//                        HStack {
-//                            VStack(alignment: .leading, spacing: 10) {
-//                                Text(groupChat.name!)
-//                                    .font(.title2)
-//                                
-//                                Text(groupChat.recentMessage ?? "Nothing here yet!")
-//                                    .font(.subheadline)
-//                                    .foregroundColor(.gray)
-//                            }
-//                            
-//                            Spacer()
-//                        }
-//                    }
-//                    .contentShape(Rectangle())
-//                }
                 
                 ZStack(alignment: .bottomTrailing) {
                     Color.clear
@@ -217,11 +181,11 @@ struct GroupsView: View {
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            self.appState.showTab = true
             
             #if targetEnvironment(simulator)
             viewModel.mockGetAllGroupChats()
             #else
+            self.appState.showTab = true
             Task {
                 await viewModel.getAllGroupChats()
             }

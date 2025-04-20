@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 enum CreateGroupFocusField: Hashable {
     case groupName, groupDesc, done
@@ -13,20 +14,43 @@ enum CreateGroupFocusField: Hashable {
 
 struct CreateGroupView: View {
     
+    @State var selectedItem: PhotosPickerItem?
+    @State var imageData: Data?
+    
     @State var groupNameField: String = ""
     @State var descriptionField: String = ""
     @FocusState private var groupFieldFocused: CreateGroupFocusField?
     @State private var selectedCourse = 0
     @State private var selectedPrivacy = 0
     @EnvironmentObject private var appState: AppState
-    
-    
     @State var groupChatCreationError = false
     
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         VStack(spacing: 15) {
+            
+            ZStack {
+                if let imageData,
+                   let uiImage = UIImage(data: imageData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 150, height: 150)
+                        .clipShape(Circle())
+                        .shadow(radius: 10)
+                } else {
+                    Image(systemName: "person.crop.circle.fill")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 150, height: 150)
+                }
+            }
+            
+            PhotosPicker(selection: $selectedItem, matching: .images) {
+                Text("Select Image")
+            }
+            
             TextField("Group Name", text: $groupNameField)
                 .padding()
                 .background(
@@ -37,15 +61,6 @@ struct CreateGroupView: View {
                 .onSubmit {
                     groupFieldFocused = CreateGroupFocusField.groupDesc
                 }
-            
-            List {
-                Picker("Select Course", selection: $selectedCourse) {
-                    Text("Course 1").tag(0)
-                    Text("Course 2").tag(1)
-                    Text("Course 3").tag(2)
-                }
-            }
-            .frame(height: 100)
            
             TextField("Description", text: $descriptionField)
                 .padding()
@@ -76,7 +91,7 @@ struct CreateGroupView: View {
                     
                     Task {
                         do {
-                            let res = try await StudyPalAPI.createGroupChat(groupChatName: groupNameField, groupDescription: descriptionField, privacySetting: selectedPrivacy == 1)
+                            let res = try await StudyPalAPI.createGroupChat(groupChatName: groupNameField, groupDescription: descriptionField, privacySetting: selectedPrivacy == 1, groupImage: (imageData != nil) ? UIImage(data: imageData!): nil)
                             
                             
                             if !res {
@@ -96,12 +111,17 @@ struct CreateGroupView: View {
                 }
             }
             .frame(maxHeight: 100)
-            
-            
-            
         }
         .padding(15)
         .contentShape(Rectangle())
+        .onChange(of: selectedItem) { oldItem, newItem in
+            
+            Task {
+                if let data = try? await newItem?.loadTransferable(type: Data.self) {
+                    imageData = data
+                }
+            }
+        }
         .alert(
             "Error Creating Group Chat!",
             isPresented: $groupChatCreationError) {
@@ -130,4 +150,5 @@ struct CreateGroupView: View {
 
 #Preview {
     CreateGroupView()
+        .environmentObject(AppState())
 }
