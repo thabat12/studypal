@@ -82,6 +82,8 @@ struct DraggableOverlayGroupChatView: View {
                             withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
                                 toggleBounce = true
                             }
+                        } else if self.offset > self.swipeThreshold {
+                            toggleBounce = false
                         }
                     }
                 }

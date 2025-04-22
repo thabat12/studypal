@@ -92,6 +92,31 @@ class GroupChatViewModel: ObservableObject {
         
     }
     
+    // Register myself as a listener to all the group chats so when things change, I change
+    func registerAsListener() async {
+        do {
+            try await StudyPalAPI.getAllUserGroupChatsListener { groupChats in
+                
+                self.isLoading = true
+                
+                self.groupChats = groupChats.map {
+                    groupChatDict in
+                    
+                    do {
+                        let res = try GroupChatInfoModel(dictionary: groupChatDict)
+                        return res
+                    } catch {
+                        return GroupChatInfoModel(name: "error")
+                    }
+                }
+                
+                self.isLoading = false
+            }
+        } catch {
+            print("register as listener not working!")
+        }
+    }
+    
     #if targetEnvironment(simulator)
     @MainActor
     func mockGetAllGroupChats() {
@@ -132,18 +157,23 @@ struct GroupsView: View {
                     .foregroundStyle(Color.red)
             } else {
                 
-                ScrollView {
-                    VStack {
-                        ForEach(viewModel.groupChats) {
-                            groupChat in
-                            
-                            VStack {
-                                GroupTile(groupChat: groupChat)
-                                Divider()
+                if (viewModel.groupChats.count == 0) {
+                    Text("Nothing in here yet!")
+                        .offset(y: -50)
+                } else {
+                    ScrollView {
+                        VStack {
+                            ForEach(viewModel.groupChats) {
+                                groupChat in
+                                
+                                VStack {
+                                    GroupTile(groupChat: groupChat)
+                                    Divider()
+                                }
                             }
                         }
+                        .padding(.horizontal, 20)
                     }
-                    .padding(.horizontal, 20)
                 }
                 
                 ZStack(alignment: .bottomTrailing) {
@@ -187,7 +217,7 @@ struct GroupsView: View {
             #else
             self.appState.showTab = true
             Task {
-                await viewModel.getAllGroupChats()
+                await viewModel.registerAsListener()
             }
             #endif
         }

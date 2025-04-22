@@ -7,6 +7,7 @@
 import FirebaseAuth
 import FirebaseFirestore
 import FirebaseStorage
+import GoogleSignIn
 
 // MARK: FirebaseAPIErrors
 enum FirebaseAPIErrors: Error {
@@ -16,6 +17,14 @@ enum FirebaseAPIErrors: Error {
     case userAlreadyInGroup
     case groupChatNotFound
     case userNotInitializedOnDatabase
+}
+
+enum GoogleSignInErrors: Error {
+    case accessTokenNotFetchable
+}
+
+enum DataErrors: Error {
+    case errorParsingData
 }
 
 // MARK: FileTypes
@@ -31,16 +40,43 @@ class StudyPalAPI {
      
         This file deals with all the document / collection updates required for our app's backend logic, and every component in this app will use the the functions in here to communicate with the "API".
      */
+    
+    // MARK: db
     static private var db: Firestore = {
         return Firestore.firestore()
     }()
     
+    // MARK: storage
     static private var storage: Storage = {
         return Storage.storage()
     }()
     
+    // MARK: getGoogleAccessToken
+    static private func getGoogleAccessToken(completion: @escaping (String?) -> Void){
+        
+        guard let user = GIDSignIn.sharedInstance.currentUser else {
+            completion(nil)
+            return
+        }
+        
+        user.refreshTokensIfNeeded { refreshedUser, error in
+            if let error = error {
+                completion(nil)
+                return
+            }
+            
+            guard let token = refreshedUser?.accessToken.tokenString else {
+                completion(nil)
+                return
+            }
+            
+            completion(token)
+        }
+    }
+    
     // Prevent anything from initializing this API service
     private init() { }
+    
     
     // MARK: getUid
     static func getUid() async throws -> String {
@@ -51,6 +87,13 @@ class StudyPalAPI {
         return uid
     }
     
+    // MARK: getUserDetails
+    static func getUserDetails() throws -> User {
+        guard let currentUser = Auth.auth().currentUser else { throw FirebaseAPIErrors.userNotSignedIn }
+        
+        return currentUser
+    }
+    
     // MARK: updateUserDetailsFirestore
     static func updateUserDetailsFirestore() async -> Bool {
         
@@ -58,7 +101,6 @@ class StudyPalAPI {
         guard let user = Auth.auth().currentUser else { return false }
         
         do {
-            @ServerTimestamp var createdAt: Timestamp?
             let userDocRef = StudyPalAPI.db.collection("users").document(user.uid)
             
             let document = try await userDocRef.getDocument()
@@ -68,8 +110,8 @@ class StudyPalAPI {
                 try await userDocRef.setData([
                     "id": user.uid,
                     "displayName": user.displayName ?? "",
-                    "createdAt": createdAt!,
-                    "lastActive": createdAt!,
+                    "createdAt": FieldValue.serverTimestamp(),
+                    "lastActive": FieldValue.serverTimestamp(),
                     "email": user.email ?? "",
                     "courses": [],
                     "bio": "",
@@ -81,7 +123,7 @@ class StudyPalAPI {
                 try await userDocRef.setData([
                     "id": user.uid,
                     "displayName": user.displayName ?? "",
-                    "lastActive": createdAt!,
+                    "lastActive": FieldValue.serverTimestamp(),
                     "email": user.email ?? "",
                     "courses": [],
                     "bio": "",
@@ -93,6 +135,59 @@ class StudyPalAPI {
         }
         
         return true
+    }
+    
+    // MARK: getGoogleDocsDocuments
+    static func getGoogleDocsDocuments(completion: @escaping ([String: Any]?) -> Void) -> Void {
+        let requestString = "https://www.googleapis.com/drive/v3/files?q=mimeType='application/vnd.google-apps.document' or mimeType='application/pdf'&fields=nextPageToken, files(id,name,modifiedTime, thumbnailLink)&orderBy=modifiedTime desc"
+        
+        /*
+         Note: request with pagination is like this...
+            For demo purposes, we are not going to do pagination
+         
+         GET https://www.googleapis.com/drive/v3/files
+         ?q=(mimeType='application/vnd.google-apps.document'+or+mimeType='application/pdf')+and+trashed=false
+         &fields=nextPageToken, files(id,name,modifiedTime,thumbnailLink)
+         &orderBy=modifiedTime desc
+         &pageToken=next-page-token-string
+         
+         
+         Also a very helpful tool to figure this out:
+         https://developers.google.com/oauthplayground
+         */
+        
+        StudyPalAPI.getGoogleAccessToken {
+            accessToken in
+            
+            guard let accessToken = accessToken else {
+                return
+            }
+            
+            guard let url = URL(string: requestString) else {
+                return
+            }
+            
+            var request = URLRequest(url: url)
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+
+            URLSession.shared.dataTask(with: request) { data, response, error in
+
+                if let error = error {
+                    return
+                }
+                
+                guard let data = data else {
+                    return
+                }
+                
+                do {
+                    let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
+                    completion(json)
+                } catch {
+                    completion(nil)
+                }
+            }.resume()
+        }
     }
     
     // MARK: uploadImageToFirebase
@@ -264,6 +359,36 @@ class StudyPalAPI {
         }
     }
     
+    // MARK: getAllUserGroupChatsListener
+    static func getAllUserGroupChatsListener(updatedUserList: @escaping ([[String: Any]]) -> Void) async throws -> Void {
+        guard let uid = Auth.auth().currentUser?.uid else {
+            throw FirebaseAPIErrors.userNotSignedIn
+        }
+        
+        let groupChatsRef = StudyPalAPI.db.collection("groupChats")
+        
+        do {
+            groupChatsRef.whereField("members", arrayContains: uid)
+                .addSnapshotListener { snapshot, error in
+                    guard let snapshot = snapshot else {
+                        print("Error fetching snapshot: \(error?.localizedDescription ?? "Unknown error")")
+                        return
+                    }
+                    
+                    var documentData: [[String: Any]] = []
+                    
+                    for document in snapshot.documents {
+                        documentData.append(document.data())
+                    }
+                    
+                    updatedUserList(documentData)
+                }
+            
+        } catch {
+            throw FirebaseAPIErrors.errorParsingFirestoreDocument
+        }
+    }
+    
     // MARK: uploadFileToBackend
     static func uploadFileToBackend(
         data: Data,
@@ -345,6 +470,7 @@ class StudyPalAPI {
         
     }
     
+    // MARK: queryGroupChatMessages
     static func queryGroupChatMessages(
         groupChatId: String
     ) async throws -> [[String: Any]] {

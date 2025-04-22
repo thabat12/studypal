@@ -35,16 +35,31 @@ struct Button<Content: View>: View {
             ,alignment: .center
         )
         .scaleEffect(isPressed ? 0.95 : 1.0)
-        .onTapGesture {
-            withAnimation(.easeInOut, completionCriteria: .logicallyComplete, {
-                self.action()
-                isPressed = true
-            }, completion: {
-                withAnimation {
-                    isPressed = false
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    withAnimation(.easeInOut) {
+                        self.isPressed = true
+                    }
                 }
-            })
-        }
+                .onEnded { value in
+                    withAnimation(.easeInOut) {
+                        self.isPressed = false
+                    }
+                    
+                    self.action()
+                }
+        )
+//        .onTapGesture {
+//            withAnimation(.easeInOut, completionCriteria: .logicallyComplete, {
+//                self.action()
+//                isPressed = true
+//            }, completion: {
+//                withAnimation {
+//                    isPressed = false
+//                }
+//            })
+//        }
     }
 }
 

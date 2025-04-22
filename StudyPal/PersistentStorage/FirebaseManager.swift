@@ -20,6 +20,16 @@ class FirebaseManager {
             GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
         }
         
+        // see if you can get the Google access token here
+        if FirebaseManager.isUserLoggedIn() {
+            if let googleUser = GIDSignIn.sharedInstance.currentUser {
+                let accessToken = googleUser.accessToken
+                print("access token found! it is: \(accessToken)")
+            } else {
+                print("google user not found ):")
+            }
+        }
+        
         // Configure Facebook Sign In
 //        ApplicationDelegate.shared.application(
 //            UIApplication.shared,

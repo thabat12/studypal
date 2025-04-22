@@ -92,10 +92,16 @@ struct HomeView: View {
                             Text("Recent Notes")
                                 .font(.system(size: 20))
                             Spacer()
-                            Image(systemName: "plus")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 20, height: 20)
+                            
+                            NavigationLink {
+                                AddNotesView()
+                                    .navigationTitle("Add Notes")
+                            } label: {
+                                Image(systemName: "plus")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 20, height: 20)
+                            }
                         }
                     }
                 }
@@ -256,6 +262,7 @@ struct TaskItemView: View {
 
 #Preview {
     HomeView()
+        .environmentObject(AppState())
 }
 
 /*
