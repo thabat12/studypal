@@ -535,4 +535,44 @@ class StudyPalAPI {
             throw FirebaseAPIErrors.firebaseFunctionFailed
         }
     }
+    
+    // function for getting the name of the current user
+    static func currentUserDisplayName() -> String? {
+        guard let user = Auth.auth().currentUser else { return nil }
+
+        if let name = user.displayName, !name.isEmpty {
+            return name
+        }
+        
+        return user.email?.components(separatedBy: "@").first
+    }
+    
+    // updatePublicProfileFields
+    static func updatePublicProfileFields(
+        major: String,
+        courses: [String],
+        affiliation: String
+    ) async throws {
+        guard let uid = Auth.auth().currentUser?.uid else {
+            throw FirebaseAPIErrors.userNotSignedIn
+        }
+        
+        let userDocRef = StudyPalAPI.db.collection("users").document(uid)
+        
+        try await userDocRef.setData([
+            "major": major,
+            "courses": courses,
+            "affiliation": affiliation
+        ], merge: true)
+    }
+    
+    // fetchPublicProfileFields
+    static func fetchPublicProfileFields() async throws -> [String: Any] {
+        guard let uid = Auth.auth().currentUser?.uid else {
+            throw FirebaseAPIErrors.userNotSignedIn
+        }
+        let snap = try await db.collection("users").document(uid).getDocument()
+        return snap.data() ?? [:]
+    }
+    
 }

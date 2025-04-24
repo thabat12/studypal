@@ -60,7 +60,8 @@ struct ProfileView: View {
     ) private var profiles: FetchedResults<Profile>
 
     // State
-    @State private var name = "First Last"
+    @State private var name = "Loading..."
+    @State private var affiliation = "affiliation..."
     @State private var major = "major..."
     @State private var courses = "courses..."
     @State private var isEditing = false
@@ -98,14 +99,12 @@ struct ProfileView: View {
                         }
                         
                         VStack(alignment: .leading, spacing: 4) {
-                            TextField("Enter Name", text: $name)
+                            Text(name)
+                                .font(.headline)
+                            TextField("affiliation...", text: $affiliation)
                                 .disabled(!isEditing)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .background(isEditing ? Color.white : Color(UIColor.systemGray6))
-                            
-                            Text("Affiliation")
-                                .font(.caption)
-                                .foregroundColor(.gray)
+                                .background(isEditing ? Color.white: Color(UIColor.systemGray6))
                         }
                         
                         Spacer()
@@ -201,6 +200,22 @@ struct ProfileView: View {
                         profileImage = UIImage(data: data)
                     }
                 }
+                
+                name = StudyPalAPI.currentUserDisplayName() ?? "Unknown"
+                
+                Task {
+                    do {
+                        let data = try await StudyPalAPI.fetchPublicProfileFields()
+                        affiliation = data["affiliation"] as? String ?? affiliation
+                        major       = data["major"]       as? String ?? major
+                        if let arr  = data["courses"]     as? [String] {
+                            courses = arr.joined(separator: ", ")
+                        }
+                    } catch {
+                        print("Failed to fetch profile fields: \(error)")
+                    }
+                }
+
             }
             .navigationTitle("Profile")
             .toolbar {
@@ -213,18 +228,6 @@ struct ProfileView: View {
                             .font(.system(size: 14))
                             .padding(.vertical, 6)
                             .padding(.horizontal, 12)
-                    }
-                }
-            }
-            .onAppear {
-                Task {
-                    do {
-                        let userDetails: User = try StudyPalAPI.getUserDetails()
-                        
-                        
-                        self.name = userDetails.displayName ?? "Unknown"
-                    } catch {
-                        
                     }
                 }
             }
@@ -244,29 +247,36 @@ struct ProfileView: View {
         }
     }
 
-    func saveProfile() {
-
+    private func saveProfile() {
         let profile = profiles.first ?? Profile(context: viewContext)
-        profile.name = name
-        profile.major = major
+        profile.major   = major
         profile.courses = courses
-        
         if let image = profileImage {
             profile.imageData = image.jpegData(compressionQuality: 0.8)
         }
+        try? viewContext.save()
 
-        do {
-            try viewContext.save()
-            print("Profile saved to Core Data")
-        } catch {
-            print("Failed to save: \(error.localizedDescription)")
+        let courseArray = courses
+            .split(separator: ",")
+            .map { String($0).trimmingCharacters(in: .whitespaces) }
+
+        Task {
+            do {
+                try await StudyPalAPI.updatePublicProfileFields(
+                    major:       major,
+                    courses:     courseArray,
+                    affiliation: affiliation
+                )
+                print("Firestore profile merged successfully.")
+            } catch {
+                print("Failed to merge profile in Firestore: \(error)")
+            }
         }
-
-        print("Saved Profile:")
-        print("Name: \(name)")
-        print("Major: \(major)")
-        print("Courses: \(courses)")
     }
+
+
+
+
 
 }
 
