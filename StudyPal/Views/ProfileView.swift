@@ -211,6 +211,18 @@ struct ProfileView: View {
                         if let arr  = data["courses"]     as? [String] {
                             courses = arr.joined(separator: ", ")
                         }
+                        
+                        if profileImage == nil,
+                                   let urlString = data["imageURL"] as? String,
+                                   let url = URL(string: urlString) {
+
+                                    let (d, _) = try await URLSession.shared.data(from: url)
+                                    if let img = UIImage(data: d) {
+                                        await MainActor.run {
+                                            profileImage = img
+                                        }
+                                    }
+                                }
                     } catch {
                         print("Failed to fetch profile fields: \(error)")
                     }
@@ -247,32 +259,52 @@ struct ProfileView: View {
         }
     }
 
+    @MainActor
     private func saveProfile() {
-        let profile = profiles.first ?? Profile(context: viewContext)
+
+        let uid = Auth.auth().currentUser?.uid ?? "local"
+        let profile = profiles.first ?? {
+            let p = Profile(context: viewContext)
+            p.id = uid
+            return p
+        }()
+
+        // 2.  Update local fields
         profile.major   = major
         profile.courses = courses
-        if let image = profileImage {
-            profile.imageData = image.jpegData(compressionQuality: 0.8)
+        if let uiImage = profileImage {
+            profile.imageData = uiImage.jpegData(compressionQuality: 0.8)
         }
-        try? viewContext.save()
 
-        let courseArray = courses
-            .split(separator: ",")
-            .map { String($0).trimmingCharacters(in: .whitespaces) }
+        try? viewContext.save()
 
         Task {
             do {
+                var remoteURL: String? = nil
+
+                if let uiImage = profileImage {
+                    remoteURL = try await StudyPalAPI.uploadProfileImage(uiImage)
+                }
+
+                let courseArray = courses
+                    .split(separator: ",")
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+
                 try await StudyPalAPI.updatePublicProfileFields(
-                    major:       major,
-                    courses:     courseArray,
-                    affiliation: affiliation
+                    major      : major,
+                    courses    : courseArray,
+                    affiliation: affiliation,
+                    imageURL   : remoteURL
                 )
-                print("Firestore profile merged successfully.")
+                print("profile saved + uploaded")
             } catch {
-                print("Failed to merge profile in Firestore: \(error)")
+                print("saveProfile error: \(error)")
             }
         }
     }
+
+
+
 
 
 
@@ -285,3 +317,4 @@ struct ProfileView: View {
     ProfileView()
 
 }
+

@@ -551,21 +551,23 @@ class StudyPalAPI {
     static func updatePublicProfileFields(
         major: String,
         courses: [String],
-        affiliation: String
+        affiliation: String,
+        imageURL: String? = nil            // ← ADD
     ) async throws {
-        guard let uid = Auth.auth().currentUser?.uid else {
-            throw FirebaseAPIErrors.userNotSignedIn
-        }
-        
-        let userDocRef = StudyPalAPI.db.collection("users").document(uid)
-        
-        try await userDocRef.setData([
+
+        let uid = try await getUid()
+        let ref = db.collection("users").document(uid)
+
+        var data: [String: Any] = [
             "major": major,
             "courses": courses,
             "affiliation": affiliation
-        ], merge: true)
+        ]
+        if let imageURL { data["imageURL"] = imageURL }   // ← ADD
+
+        try await ref.setData(data, merge: true)
     }
-    
+
     // fetchPublicProfileFields
     static func fetchPublicProfileFields() async throws -> [String: Any] {
         guard let uid = Auth.auth().currentUser?.uid else {
@@ -575,4 +577,31 @@ class StudyPalAPI {
         return snap.data() ?? [:]
     }
     
+    // MARK: uploadProfileImage
+    static func uploadProfileImage(_ image: UIImage) async throws -> String {
+        guard let data = image.jpegData(compressionQuality: 0.8) else {
+            throw DataErrors.errorParsingData
+        }
+
+        let uid = try await getUid()
+        let ref = storage.reference()
+                      .child("users/\(uid)/profile.jpg")  
+
+        // Wrap callback Storage API in a continuation
+        return try await withCheckedThrowingContinuation { cont in
+            ref.putData(data, metadata: nil) { _, error in
+                if let error { cont.resume(throwing: error); return }
+
+                ref.downloadURL { url, error in
+                    if let error { cont.resume(throwing: error) }
+                    else if let url { cont.resume(returning: url.absoluteString) }
+                }
+            }
+        }
+    }
+
+
+
+    
 }
+
