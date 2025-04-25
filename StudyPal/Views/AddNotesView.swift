@@ -48,9 +48,44 @@ enum NotesSource: String, CaseIterable, Identifiable {
     var id: Self { self } // TODO: figure
 }
 
+class NotesDataViewModel: ObservableObject {
+    @Published var googleDocsNotes: [NotesInfoModel] = []
+    
+    @MainActor
+    func loadGoogleDocuments() {
+        StudyPalAPI.getGoogleDocsDocuments { documents in
+            
+            guard let documents = documents else { return }
+            
+            guard let files: [[String: Any]] = documents["files"] as? [[String: Any]] else {
+                return
+            }
+            
+            // Mapping each file dictionary to a NotesInfoModel
+            DispatchQueue.main.async {
+                self.googleDocsNotes = files.compactMap { fileDict in
+                    
+                    do {
+                        let model = try NotesInfoModel(dict: fileDict)
+                        return model
+                    } catch {
+                        return nil
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct AddNotesView: View {
     @State private var selectedNotesSource: NotesSource = .everything
-    @State private var googleDocsNotes: [NotesInfoModel]?
+    @StateObject private var notesDataModel: NotesDataViewModel = .init()
+    
+    // Define columns: 3 equal-width flexible columns
+    let columns = [
+        GridItem(.flexible()),
+        GridItem(.flexible())
+    ]
     
     var body: some View {
         VStack(alignment: .leading) {
@@ -69,33 +104,30 @@ struct AddNotesView: View {
             
             Divider()
             
-            Spacer()
+            ScrollView {
+                if notesDataModel.googleDocsNotes.count > 0 {
+                    LazyVGrid(columns: columns, spacing: 10) {
+                        ForEach(notesDataModel.googleDocsNotes, id: \.id) { note in
+                            
+                            VStack {
+                                Text(note.name)
+                                if note.thumbnailLink != nil {
+                                    AsyncImage(url: URL(string: note.thumbnailLink!))
+                                }
+                                Text(note.modifiedTime.formatted(date: .abbreviated, time: .shortened))
+                            }
+                        }
+                    }
+                } else {
+                    Text("Nothing in here yet!")
+                        .frame(maxHeight: .infinity)
+                }
+            }
+            
         }
         .onAppear {
             Task {
-                
-                StudyPalAPI.getGoogleDocsDocuments {
-                    documents in
-                    
-                    guard let documents = documents else { return }
-                    
-                    guard let files: [[String: Any]] = documents["files"] as? [[String: Any]] else {
-                        return
-                    }
-                    
-                    // Mapping each file dictionary to a NotesInfoModel
-                    self.googleDocsNotes = files.compactMap { fileDict in
-                        
-                        do {
-                            let model = try NotesInfoModel(dict: fileDict)
-                            return model
-                        } catch {
-                            return nil
-                        }
-                    }
-                    
-                    print(self.googleDocsNotes ?? "wut")
-                }
+                notesDataModel.loadGoogleDocuments()
             }
         }
     }

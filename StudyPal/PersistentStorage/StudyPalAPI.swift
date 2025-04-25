@@ -190,6 +190,17 @@ class StudyPalAPI {
         }
     }
     
+    static func getGoogleDocsDocument(fromId id: String, completion: @escaping ([String: Any]?) -> Void) {
+        
+        StudyPalAPI.getGoogleAccessToken {
+            accessToken in
+            
+            guard let accessToken = accessToken else { return }
+//            guard let url = URL(string: )
+        }
+        
+    }
+    
     // MARK: uploadImageToFirebase
     static func uploadImageToFirebase(image: UIImage, completion: @escaping (Result<String, Error>) -> Void) {
         guard let imageData = image.jpegData(compressionQuality: 0.8) else { return }

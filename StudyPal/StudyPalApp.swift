@@ -49,22 +49,20 @@ struct RootView: View {
         }
         // Credit: https://medium.com/@matteocuzzolin/google-sign-in-with-firebase-in-swiftui-app-c8dc7b7ed4f9
         .onAppear{
-            //Firebase state change listeneer
-            #if targetEnvironment(simulator)
+            let isPreview = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
             
-            userLoggedIn = true
-            
-            #else
-            
-            Auth.auth().addStateDidChangeListener{ auth, user in
-                if (user != nil) {
-                    userLoggedIn = true
-                } else {
-                    userLoggedIn = false
+            if isPreview {
+                userLoggedIn = true
+            } else {
+                //Firebase state change listeneer
+                Auth.auth().addStateDidChangeListener{ auth, user in
+                    if (user != nil) {
+                        userLoggedIn = true
+                    } else {
+                        userLoggedIn = false
+                    }
                 }
             }
-            
-            #endif
         }
     }
 }
@@ -142,7 +140,12 @@ struct MainView: View {
     
     func logout() async throws {
         GIDSignIn.sharedInstance.signOut()
-        try Auth.auth().signOut()
+        
+        do {
+            try Auth.auth().signOut()
+        } catch {
+            print("Sign out failed: \(error.localizedDescription)")
+        }
     }
 }
 
