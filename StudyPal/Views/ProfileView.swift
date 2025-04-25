@@ -60,7 +60,8 @@ struct ProfileView: View {
     ) private var profiles: FetchedResults<Profile>
 
     // State
-    @State private var name = "First Last"
+    @State private var name = "Loading..."
+    @State private var affiliation = "affiliation..."
     @State private var major = "major..."
     @State private var courses = "courses..."
     @State private var isEditing = false
@@ -98,14 +99,12 @@ struct ProfileView: View {
                         }
                         
                         VStack(alignment: .leading, spacing: 4) {
-                            TextField("Enter Name", text: $name)
+                            Text(name)
+                                .font(.headline)
+                            TextField("affiliation...", text: $affiliation)
                                 .disabled(!isEditing)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .background(isEditing ? Color.white : Color(UIColor.systemGray6))
-                            
-                            Text("Affiliation")
-                                .font(.caption)
-                                .foregroundColor(.gray)
+                                .background(isEditing ? Color.white: Color(UIColor.systemGray6))
                         }
                         
                         Spacer()
@@ -201,6 +200,34 @@ struct ProfileView: View {
                         profileImage = UIImage(data: data)
                     }
                 }
+                
+                name = StudyPalAPI.currentUserDisplayName() ?? "Unknown"
+                
+                Task {
+                    do {
+                        let data = try await StudyPalAPI.fetchPublicProfileFields()
+                        affiliation = data["affiliation"] as? String ?? affiliation
+                        major       = data["major"]       as? String ?? major
+                        if let arr  = data["courses"]     as? [String] {
+                            courses = arr.joined(separator: ", ")
+                        }
+                        
+                        if profileImage == nil,
+                                   let urlString = data["imageURL"] as? String,
+                                   let url = URL(string: urlString) {
+
+                                    let (d, _) = try await URLSession.shared.data(from: url)
+                                    if let img = UIImage(data: d) {
+                                        await MainActor.run {
+                                            profileImage = img
+                                        }
+                                    }
+                                }
+                    } catch {
+                        print("Failed to fetch profile fields: \(error)")
+                    }
+                }
+
             }
             .navigationTitle("Profile")
             .toolbar {
@@ -213,18 +240,6 @@ struct ProfileView: View {
                             .font(.system(size: 14))
                             .padding(.vertical, 6)
                             .padding(.horizontal, 12)
-                    }
-                }
-            }
-            .onAppear {
-                Task {
-                    do {
-                        let userDetails: User = try StudyPalAPI.getUserDetails()
-                        
-                        
-                        self.name = userDetails.displayName ?? "Unknown"
-                    } catch {
-                        
                     }
                 }
             }
@@ -244,29 +259,56 @@ struct ProfileView: View {
         }
     }
 
-    func saveProfile() {
+    @MainActor
+    private func saveProfile() {
 
-        let profile = profiles.first ?? Profile(context: viewContext)
-        profile.name = name
-        profile.major = major
+        let uid = Auth.auth().currentUser?.uid ?? "local"
+        let profile = profiles.first ?? {
+            let p = Profile(context: viewContext)
+            p.id = uid
+            return p
+        }()
+
+        // 2.  Update local fields
+        profile.major   = major
         profile.courses = courses
-        
-        if let image = profileImage {
-            profile.imageData = image.jpegData(compressionQuality: 0.8)
+        if let uiImage = profileImage {
+            profile.imageData = uiImage.jpegData(compressionQuality: 0.8)
         }
 
-        do {
-            try viewContext.save()
-            print("Profile saved to Core Data")
-        } catch {
-            print("Failed to save: \(error.localizedDescription)")
-        }
+        try? viewContext.save()
 
-        print("Saved Profile:")
-        print("Name: \(name)")
-        print("Major: \(major)")
-        print("Courses: \(courses)")
+        Task {
+            do {
+                var remoteURL: String? = nil
+
+                if let uiImage = profileImage {
+                    remoteURL = try await StudyPalAPI.uploadProfileImage(uiImage)
+                }
+
+                let courseArray = courses
+                    .split(separator: ",")
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+
+                try await StudyPalAPI.updatePublicProfileFields(
+                    major      : major,
+                    courses    : courseArray,
+                    affiliation: affiliation,
+                    imageURL   : remoteURL
+                )
+                print("profile saved + uploaded")
+            } catch {
+                print("saveProfile error: \(error)")
+            }
+        }
     }
+
+
+
+
+
+
+
 
 }
 
@@ -275,3 +317,4 @@ struct ProfileView: View {
     ProfileView()
 
 }
+
