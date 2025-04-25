@@ -212,14 +212,10 @@ struct GroupsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             
-            #if targetEnvironment(simulator)
-            viewModel.mockGetAllGroupChats()
-            #else
             self.appState.showTab = true
             Task {
                 await viewModel.registerAsListener()
             }
-            #endif
         }
     }
 }

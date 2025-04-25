@@ -112,10 +112,7 @@ class StudyPalAPI {
                     "displayName": user.displayName ?? "",
                     "createdAt": FieldValue.serverTimestamp(),
                     "lastActive": FieldValue.serverTimestamp(),
-                    "email": user.email ?? "",
-                    "courses": [],
-                    "bio": "",
-                    "affiliation": ""
+                    "email": user.email ?? ""
                 ])
             }
             // update any active fields
@@ -124,10 +121,7 @@ class StudyPalAPI {
                     "id": user.uid,
                     "displayName": user.displayName ?? "",
                     "lastActive": FieldValue.serverTimestamp(),
-                    "email": user.email ?? "",
-                    "courses": [],
-                    "bio": "",
-                    "affiliation": ""
+                    "email": user.email ?? ""
                 ], merge: true)
             }
         } catch {

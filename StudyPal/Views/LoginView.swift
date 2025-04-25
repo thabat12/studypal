@@ -105,6 +105,7 @@ struct LoginView: View {
 //        GoogleSignInPersistence.bindGoogleUser(user: user)
         
         try await Auth.auth().signIn(with: credential)
+        let _ = await StudyPalAPI.updateUserDetailsFirestore()
     }
     
     func logout() async throws {
