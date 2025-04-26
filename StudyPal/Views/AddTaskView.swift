@@ -6,9 +6,10 @@
 //
 
 import SwiftUI
+import FirebaseFirestore
 
-
-enum FormFieldFocus: Hashable {
+// Define enum with unique name to avoid conflict
+enum AddTaskFormFieldFocus: Hashable {
     case taskName, description, category, done
 }
 
@@ -25,7 +26,7 @@ struct AddTaskView: View {
     @State private var isSaving = false
     @State private var errorMessage: String? = nil
     @State private var selectedCategory: String? = nil
-    @FocusState private var focused: FormFieldFocus?
+    @FocusState private var focused: AddTaskFormFieldFocus?
     
     // Add TaskViewModel
     @StateObject private var taskViewModel = TaskViewModel()
@@ -154,33 +155,31 @@ struct AddTaskView: View {
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            focused = FormFieldFocus.taskName
+            focused = .taskName
             appState.showTab = false
             categories = taskViewModel.convertToCategoryUIModels()
         }
     }
     
     private func saveTask() {
-        guard !taskName.isEmpty else { return }
+        if taskName.isEmpty {
+            errorMessage = "Task name cannot be empty"
+            return
+        }
         
         isSaving = true
         errorMessage = nil
         
         // Determine which category to use
-        let finalCategoryName: String?
-        if !taskCategoryNew.isEmpty {
-            finalCategoryName = taskCategoryNew
-        } else {
-            finalCategoryName = selectedCategory
-        }
+        let categoryToUse = taskCategoryNew.isEmpty ? selectedCategory : taskCategoryNew
         
         Task {
             let success = await taskViewModel.createTask(
                 name: taskName,
-                description: taskDesc.isEmpty ? nil : taskDesc,
+                description: taskDesc,
                 dueDate: selectedDate,
                 isAllDay: isAllDay,
-                categoryName: finalCategoryName,
+                categoryName: categoryToUse,
                 categoryColor: "blue" // Default color, could be enhanced
             )
             

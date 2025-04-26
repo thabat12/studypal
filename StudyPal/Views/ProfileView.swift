@@ -1,88 +1,47 @@
 import SwiftUI
-
 import UIKit
-
-// Import ImagePicker
-
 import PhotosUI
 
 // MARK: - ImagePicker Utility
-
 struct ImagePicker: UIViewControllerRepresentable {
-
     @Environment(\.presentationMode) private var presentationMode
-
     @Binding var selectedImage: UIImage?
-
     
-
     func makeUIViewController(context: Context) -> UIImagePickerController {
-
         let picker = UIImagePickerController()
-
         picker.delegate = context.coordinator
-
         picker.allowsEditing = true
-
         picker.sourceType = .photoLibrary
-
         return picker
-
     }
-
     
-
     func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-
     
-
     func makeCoordinator() -> Coordinator {
-
         Coordinator(self)
-
     }
-
     
-
     class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-
         let parent: ImagePicker
-
         
-
         init(_ parent: ImagePicker) {
-
             self.parent = parent
-
         }
-
         
-
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-
             if let image = info[.editedImage] as? UIImage {
-
                 parent.selectedImage = image
-
             }
-
             parent.presentationMode.wrappedValue.dismiss()
-
         }
-
         
-
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-
             parent.presentationMode.wrappedValue.dismiss()
-
         }
-
     }
-
 }
+
 struct ProfileView: View {
-    
     @Environment(\.managedObjectContext) private var viewContext
     @FetchRequest(
         entity: Profile.entity(),
@@ -100,14 +59,9 @@ struct ProfileView: View {
     
     // Body
     var body: some View {
-
-            VStack {
-
-                ScrollView {
-
-                    VStack(spacing: 20) {
-
-
+        VStack {
+            ScrollView {
+                VStack(spacing: 20) {
                     // Profile Image + Name + Affiliation
                     HStack(alignment: .center, spacing: 16) {
                         ZStack {
@@ -127,51 +81,15 @@ struct ProfileView: View {
                                             .foregroundColor(.black)
                                     )
                             }
-
-                            .onTapGesture {
-
-                                if isEditing {
-
-                                    isImagePickerPresented = true
-
-                                }
-
-                            }
-
-                            VStack(alignment: .leading, spacing: 4) {
-
-                                TextField("Enter Name", text: $name)
-
-                                    .disabled(!isEditing)
-
-                                    .textFieldStyle(RoundedBorderTextFieldStyle())
-
-                                    .background(isEditing ? Color.white : Color(UIColor.systemGray6))
-
-                                Text("Affiliation")
-
-                                    .font(.caption)
-
-                                    .foregroundColor(.gray)
-
-                            }
-
-                            Spacer()
-
                         }
-
-                        .padding(.horizontal)
-
-                        .padding(.top, -10)
-
-                        // MARK: - Major Field
-
-                        HStack {
-
-                            Text("Major:")
-
-                            TextField("major...", text: $major)
-
+                        .onTapGesture {
+                            if isEditing {
+                                isImagePickerPresented = true
+                            }
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            TextField("Enter Name", text: $name)
                                 .disabled(!isEditing)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                                 .background(isEditing ? Color.white : Color(UIColor.systemGray6))
@@ -179,8 +97,10 @@ struct ProfileView: View {
                                 .font(.caption)
                                 .foregroundColor(.gray)
                         }
+                        
                         Spacer()
                     }
+                    .padding(.horizontal)
                     .padding(.top, 10)
                     
                     // Major Field
@@ -218,8 +138,7 @@ struct ProfileView: View {
                             }
                             .buttonStyle(.bordered)
                         }
-
-
+                        
                         // Google Calendar
                         HStack {
                             Text("Google Calendar")
@@ -234,7 +153,6 @@ struct ProfileView: View {
                         }
                     }
                     .padding(.top, 30)
-                    
                 }
                 .padding(.horizontal)
                 .padding(.top, 10)
@@ -264,13 +182,10 @@ struct ProfileView: View {
                             .font(.system(size: 14))
                             .padding(.vertical, 6)
                             .padding(.horizontal, 12)
- 
                     }
-
                 }
-
             }
-
+        }
     }
     
     // Actions
@@ -306,6 +221,9 @@ struct ProfileView: View {
         print("Courses: \(courses)")
     }
 }
-#Preview {
-    ProfileView()
+
+struct ProfileView_Previews: PreviewProvider {
+    static var previews: some View {
+        ProfileView()
+    }
 }

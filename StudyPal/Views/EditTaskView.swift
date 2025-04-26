@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreData
+import FirebaseFirestore
 
 struct EditTaskView: View {
     @EnvironmentObject private var appState: AppState
@@ -23,22 +24,22 @@ struct EditTaskView: View {
     @State private var showDeleteConfirmation = false
     @FocusState private var focused: FormFieldFocus?
     
-    let task: StudyPalTask
+    let task: TaskFirebaseModel
     private let taskViewModel: TaskViewModel
     
     // Categories from Core Data
     @State private var categories: [CategoryUIModel] = []
     
-    init(task: StudyPalTask, taskViewModel: TaskViewModel) {
+    init(task: TaskFirebaseModel, taskViewModel: TaskViewModel) {
         self.task = task
         self.taskViewModel = taskViewModel
         
         // Initialize state with task values
-        _taskName = State(initialValue: task.name ?? "")
+        _taskName = State(initialValue: task.name)
         _taskDesc = State(initialValue: task.taskDesc ?? "")
         _selectedDate = State(initialValue: task.dueDate ?? Date())
         _isAllDay = State(initialValue: task.isAllDay)
-        _selectedCategory = State(initialValue: task.category?.name)
+        _selectedCategory = State(initialValue: task.categoryName)
     }
     
     var body: some View {
@@ -183,9 +184,7 @@ struct EditTaskView: View {
             isPresented: $showDeleteConfirmation
         ) {
             SwiftUI.Button("Delete", role: .destructive) {
-                if let id = task.id {
-                    deleteTask(id: id)
-                }
+                deleteTask(id: task.id)
             }
             SwiftUI.Button("Cancel", role: .cancel) { }
         } message: {
@@ -197,9 +196,7 @@ struct EditTaskView: View {
             categories = taskViewModel.convertToCategoryUIModels()
             
             // Pre-select the current category if it exists
-            if let categoryName = task.category?.name {
-                selectedCategory = categoryName
-            }
+            selectedCategory = task.categoryName
         }
         .onDisappear {
             appState.showTab = true
@@ -207,43 +204,33 @@ struct EditTaskView: View {
     }
     
     private func updateTask() {
-        guard !taskName.isEmpty else { return }
+        if taskName.isEmpty {
+            errorMessage = "Task name cannot be empty"
+            return
+        }
         
         isSaving = true
         errorMessage = nil
         
         // Determine which category to use
-        let finalCategoryName: String?
-        if !taskCategoryNew.isEmpty {
-            finalCategoryName = taskCategoryNew
-        } else {
-            finalCategoryName = selectedCategory
-        }
+        let categoryToUse = taskCategoryNew.isEmpty ? selectedCategory : taskCategoryNew
         
         Task {
             do {
-                if let taskId = task.id {
-                    let _ = try await TaskService.shared.updateTask(
-                        taskId: taskId,
-                        name: taskName,
-                        description: taskDesc.isEmpty ? nil : taskDesc,
-                        dueDate: selectedDate,
-                        isAllDay: isAllDay,
-                        categoryName: finalCategoryName
-                    )
-                    
-                    // Reload tasks after update
-                    taskViewModel.loadTasks()
-                    
-                    await MainActor.run {
-                        isSaving = false
-                        dismiss()
-                    }
-                } else {
-                    await MainActor.run {
-                        isSaving = false
-                        errorMessage = "Cannot update task: Missing task ID"
-                    }
+                // Use the Firebase task service to update the task
+                let _ = try await taskViewModel.taskService.updateTask(
+                    taskId: task.id,
+                    name: taskName,
+                    description: taskDesc,
+                    dueDate: selectedDate,
+                    isAllDay: isAllDay,
+                    categoryName: categoryToUse
+                )
+                
+                await MainActor.run {
+                    isSaving = false
+                    appState.showTab = true
+                    dismiss()
                 }
             } catch {
                 await MainActor.run {
@@ -255,21 +242,27 @@ struct EditTaskView: View {
     }
     
     private func deleteTask(id: String) {
-        isSaving = true
-        
         Task {
+            isSaving = true
+            
             let success = await taskViewModel.deleteTask(taskId: id)
             
             await MainActor.run {
                 isSaving = false
                 if success {
+                    appState.showTab = true
                     dismiss()
                 } else {
-                    errorMessage = "Failed to delete task. Please try again."
+                    errorMessage = "Failed to delete task"
                 }
             }
         }
     }
+}
+
+// MARK: - Form Field Focus
+enum FormFieldFocus {
+    case taskName, description, category, done
 }
 
 // Simple mock preview that avoids CoreData initialization

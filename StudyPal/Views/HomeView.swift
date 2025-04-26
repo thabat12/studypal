@@ -31,7 +31,7 @@ struct HomeView: View {
     }
     
     @EnvironmentObject private var appState: AppState
-    @State private var selectedTask: StudyPalTask?
+    @State private var selectedTask: TaskFirebaseModel?
     @State private var showEditTask = false
     
     var body: some View {
@@ -199,24 +199,24 @@ struct HomeView: View {
 
 // MARK: - TaskItemView
 struct TaskItemView: View {
-    let task: StudyPalTask
+    let task: TaskFirebaseModel
     let taskViewModel: TaskViewModel
     @State private var showConfirmation = false
     var onTap: () -> Void
     
     var body: some View {
         TaskItem(
-            taskName: task.name ?? "Unnamed Task",
-            taskType: task.category?.name ?? "No Category",
+            taskName: task.name,
+            taskType: task.categoryName ?? "No Category",
             taskCompleted: .init(
                 get: { task.completed },
                 set: { newValue in
-                    taskViewModel.toggleTaskCompletion(taskId: task.id ?? "", completed: newValue)
+                    taskViewModel.toggleTaskCompletion(taskId: task.id, completed: newValue)
                 }
             ),
             onTaskTap: onTap
         )
-        .id(task.id ?? UUID().uuidString + (task.completed ? "-completed" : "-uncompleted"))
+        .id(task.id + (task.completed ? "-completed" : "-uncompleted"))
         .swipeActions {
             SwiftUI.Button(role: .destructive) {
                 showConfirmation = true
@@ -224,28 +224,11 @@ struct TaskItemView: View {
                 Label("Delete", systemImage: "trash")
             }
         }
-        .confirmationDialog(
-            "Delete Task",
-            isPresented: $showConfirmation
-        ) {
+        .confirmationDialog("Are you sure you want to delete this task?", isPresented: $showConfirmation) {
             SwiftUI.Button("Delete", role: .destructive) {
-                if let id = task.id {
-                    Task {
-                        await deleteTask(id: id)
-                    }
+                Task {
+                    _ = await taskViewModel.deleteTask(taskId: task.id)
                 }
-            }
-            SwiftUI.Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Are you sure you want to delete this task?")
-        }
-    }
-    
-    private func deleteTask(id: String) async {
-        Task {
-            let success = await taskViewModel.deleteTask(taskId: id)
-            if !success {
-                print("Failed to delete task")
             }
         }
     }

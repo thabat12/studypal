@@ -1,15 +1,17 @@
 import Foundation
 import SwiftUI
 import CoreData
+import FirebaseFirestore
 
 // MARK: - TaskViewModel
 class TaskViewModel: ObservableObject {
-    @Published var tasks: [StudyPalTask] = []
-    @Published var categories: [Category] = []
+    @Published var tasks: [TaskFirebaseModel] = []
+    @Published var categories: [CategoryFirebaseModel] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String? = nil
     
-    private let taskService = TaskService.shared
+    // Make taskService publicly accessible
+    let taskService = FirebaseTaskService.shared
     
     init() {
         loadTasks()
@@ -158,8 +160,8 @@ class TaskViewModel: ObservableObject {
     func convertToCategoryUIModels() -> [CategoryUIModel] {
         return categories.map { category in
             CategoryUIModel(
-                name: category.name ?? "Unknown",
-                color: colorFromString(category.color ?? "blue"),
+                name: category.name,
+                color: colorFromString(category.color),
                 selected: false
             )
         }
