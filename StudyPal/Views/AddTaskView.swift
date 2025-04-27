@@ -13,6 +13,7 @@ enum FormFieldFocus: Hashable {
 }
 
 struct AddTaskView: View {
+    @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var navigationPath = NavigationPath()
     @State private var taskName = ""
@@ -28,7 +29,6 @@ struct AddTaskView: View {
     
     // Add TaskViewModel
     @StateObject private var taskViewModel = TaskViewModel()
-    @EnvironmentObject private var appState: AppState
     
     // Categories from Core Data
     @State var categories: [CategoryUIModel] = []
@@ -155,8 +155,8 @@ struct AddTaskView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             focused = FormFieldFocus.taskName
-            categories = taskViewModel.convertToCategoryUIModels()
             appState.showTab = false
+            categories = taskViewModel.convertToCategoryUIModels()
         }
     }
     
@@ -189,6 +189,7 @@ struct AddTaskView: View {
                 
                 if success {
                     dismiss()
+                    appState.showTab = true
                 } else {
                     errorMessage = "Failed to save task. Please try again."
                 }

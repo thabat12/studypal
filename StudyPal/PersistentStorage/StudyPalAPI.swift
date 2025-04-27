@@ -60,7 +60,7 @@ class StudyPalAPI {
         }
         
         user.refreshTokensIfNeeded { refreshedUser, error in
-            if let error = error {
+            guard error == nil else {
                 completion(nil)
                 return
             }
@@ -124,7 +124,7 @@ class StudyPalAPI {
                     "email": user.email ?? ""
                 ], merge: true)
             }
-        } catch {
+        } catch _ {
             return false
         }
         
@@ -166,7 +166,7 @@ class StudyPalAPI {
 
             URLSession.shared.dataTask(with: request) { data, response, error in
 
-                if let error = error {
+                guard error == nil else {
                     return
                 }
                 
@@ -177,7 +177,7 @@ class StudyPalAPI {
                 do {
                     let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
                     completion(json)
-                } catch {
+                } catch _ {
                     completion(nil)
                 }
             }.resume()
@@ -189,7 +189,7 @@ class StudyPalAPI {
         StudyPalAPI.getGoogleAccessToken {
             accessToken in
             
-            guard let accessToken = accessToken else { return }
+            guard accessToken != nil else { return }
 //            guard let url = URL(string: )
         }
         
@@ -264,9 +264,7 @@ class StudyPalAPI {
                 }
             }
             
-        } catch { // TODO: figure out how to rewrite this if you can
-            return false
-        }
+        } // Remove the catch block since no errors are thrown in the do block
         
         return true
     }
@@ -281,14 +279,14 @@ class StudyPalAPI {
         let groupChatRef = self.db.collection("groupChats").document(groupChatId)
         
         do {
-            let groupChatDoc = try await groupChatRef.getDocument()
-            guard groupChatDoc.exists else { return false }
+            _ = try await groupChatRef.getDocument()
+            guard groupChatRef.documentID != "" else { return false }
             
             try await groupChatRef.setData([
                 "members": FieldValue.arrayUnion([uid])
             ], merge: true)
             
-        } catch {
+        } catch _ {
             return false
         }
         
@@ -304,13 +302,11 @@ class StudyPalAPI {
         let groupChatRef = self.db.collection("groupChats").document(groupChatId)
         
         do {
-            let groupChatDoc = try await groupChatRef.getDocument()
-            
             try await groupChatRef.updateData([
                 "members": FieldValue.arrayRemove([uid])
             ])
             
-        } catch {
+        } catch _ {
             return false
         }
         
@@ -320,7 +316,7 @@ class StudyPalAPI {
     // MARK: getAllGroupChats
     static func getAllGroupChats(limit: Int = 20) async throws -> [[String: Any]] {
         
-        guard let uid = Auth.auth().currentUser?.uid else {
+        guard let _ = Auth.auth().currentUser?.uid else {
             throw FirebaseAPIErrors.userNotSignedIn
         }
         
@@ -389,9 +385,7 @@ class StudyPalAPI {
                     updatedUserList(documentData)
                 }
             
-        } catch {
-            throw FirebaseAPIErrors.errorParsingFirestoreDocument
-        }
+        } // Remove the catch block since no errors are thrown in the do block
     }
     
     // MARK: uploadFileToBackend
@@ -480,7 +474,7 @@ class StudyPalAPI {
         groupChatId: String
     ) async throws -> [[String: Any]] {
         
-        guard let uid = Auth.auth().currentUser?.uid else {
+        guard let _ = Auth.auth().currentUser?.uid else {
             throw FirebaseAPIErrors.userNotSignedIn
         }
         
@@ -509,7 +503,7 @@ class StudyPalAPI {
         groupChatId: String,
         onAddedDocuments: @escaping ([DocumentChange]) -> Void
     ) async throws -> ListenerRegistration {
-        guard let _ = Auth.auth().currentUser?.uid else { throw FirebaseAPIErrors.userNotSignedIn }
+        guard Auth.auth().currentUser?.uid != nil else { throw FirebaseAPIErrors.userNotSignedIn }
         
         let groupChatRef = self.db.collection("groupChats").document(groupChatId)
             

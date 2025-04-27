@@ -55,7 +55,7 @@ struct RootView: View {
                 userLoggedIn = true
             } else {
                 //Firebase state change listeneer
-                Auth.auth().addStateDidChangeListener{ auth, user in
+                let _ = Auth.auth().addStateDidChangeListener{ auth, user in
                     if (user != nil) {
                         userLoggedIn = true
                     } else {

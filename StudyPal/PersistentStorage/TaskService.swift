@@ -1,6 +1,7 @@
 import Foundation
 import CoreData
 import FirebaseAuth
+import FirebaseFirestore
 
 // MARK: - TaskServiceError
 enum TaskServiceError: Error {
@@ -17,10 +18,10 @@ enum TaskServiceError: Error {
 class TaskService {
     static let shared = TaskService()
     
-    private let viewContext: NSManagedObjectContext
+    private let db: Firestore
     
     private init() {
-        self.viewContext = CoreDataStack.shared.persistentContainer.viewContext
+        self.db = Firestore.firestore()
     }
     
     // MARK: - Create Task
@@ -33,97 +34,173 @@ class TaskService {
                    hasGroup: Bool = false) async throws -> StudyPalTask {
         
         // Get current user ID
-        let userId = Auth.auth().currentUser?.uid ?? "unknown"
+        guard let userId = Auth.auth().currentUser?.uid else {
+            throw TaskServiceError.userNotFound
+        }
         
-        // Create a task object
-        let task = StudyPalTask(context: viewContext)
-        task.id = UUID().uuidString
-        task.name = name
-        task.taskDesc = description
-        task.dueDate = dueDate
-        task.createdBy = userId
-        task.completed = false
-        task.isAllDay = isAllDay
+        let taskId = UUID().uuidString
         
-        // Handle category if specified
+        // Prepare the task data
+        var taskData: [String: Any] = [
+            "id": taskId,
+            "name": name,
+            "createdBy": userId,
+            "completed": false,
+            "createdAt": FieldValue.serverTimestamp()
+        ]
+        
+        // Add optional fields
+        if let description = description {
+            taskData["taskDesc"] = description
+        }
+        
+        if let dueDate = dueDate {
+            taskData["dueDate"] = dueDate
+        }
+        
+        taskData["isAllDay"] = isAllDay
+        
+        // Handle category
         if let categoryName = categoryName, !categoryName.isEmpty {
+            // First try to find existing category
             let category = try await getOrCreateCategory(name: categoryName, color: categoryColor ?? "blue")
-            task.category = category
+            taskData["categoryId"] = category.id
+            taskData["categoryName"] = category.name
+            taskData["categoryColor"] = category.color
         }
         
-        // Logic for group relationship would go here if hasGroup is true
-        if hasGroup {
-            // TODO: Add group relationship logic when implemented
-        }
-        
-        // Save changes
+        // Save to Firestore
         do {
-            try viewContext.save()
+            try await db.collection("users").document(userId).collection("tasks").document(taskId).setData(taskData)
+            
+            // Create a StudyPalTask object for backward compatibility with the UI
+            let task = StudyPalTask(context: CoreDataStack.shared.persistentContainer.viewContext)
+            task.id = taskId
+            task.name = name
+            task.taskDesc = description
+            task.dueDate = dueDate
+            task.createdBy = userId
+            task.completed = false
+            task.isAllDay = isAllDay
+            
+            if let categoryName = categoryName, !categoryName.isEmpty {
+                let category = Category(context: CoreDataStack.shared.persistentContainer.viewContext)
+                category.id = taskData["categoryId"] as? String ?? UUID().uuidString
+                category.name = categoryName
+                category.color = categoryColor ?? "blue"
+                task.category = category
+            }
+            
+            // Don't save to Core Data, just return the object for UI compatibility
             return task
         } catch {
-            print("Error saving task: \(error)")
+            print("Error saving task to Firestore: \(error)")
             throw TaskServiceError.saveFailed
         }
     }
     
     // MARK: - Get or Create Category
-    private func getOrCreateCategory(name: String, color: String) async throws -> Category {
-        // Try to fetch an existing category with this name
-        let fetchRequest: NSFetchRequest<Category> = Category.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "name == %@", name)
-        
-        do {
-            let results = try viewContext.fetch(fetchRequest)
-            if let existingCategory = results.first {
-                return existingCategory
-            } else {
-                // Create a new category
-                let category = Category(context: viewContext)
-                category.id = UUID().uuidString
-                category.name = name
-                category.color = color
-                
-                try viewContext.save()
-                return category
-            }
-        } catch {
-            print("Error fetching or creating category: \(error)")
-            throw TaskServiceError.categoryNotFound
+    private func getOrCreateCategory(name: String, color: String) async throws -> (id: String, name: String, color: String) {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            throw TaskServiceError.userNotFound
         }
+        
+        // Try to fetch existing category
+        let snapshot = try await db.collection("users").document(userId).collection("categories")
+            .whereField("name", isEqualTo: name)
+            .getDocuments()
+        
+        // If category exists, return it
+        if let existingCategory = snapshot.documents.first {
+            let categoryData = existingCategory.data()
+            return (
+                id: existingCategory.documentID,
+                name: categoryData["name"] as? String ?? name,
+                color: categoryData["color"] as? String ?? color
+            )
+        }
+            
+        // Create new category
+        let categoryId = UUID().uuidString
+        let categoryData: [String: Any] = [
+            "id": categoryId,
+            "name": name,
+            "color": color,
+            "createdAt": FieldValue.serverTimestamp()
+        ]
+        
+        try await db.collection("users").document(userId).collection("categories").document(categoryId).setData(categoryData)
+        
+        return (id: categoryId, name: name, color: color)
     }
     
     // MARK: - Get Tasks
     func getTasks(completed: Bool? = nil) async throws -> [StudyPalTask] {
-        let userId = Auth.auth().currentUser?.uid
-        
-        let fetchRequest: NSFetchRequest<StudyPalTask> = StudyPalTask.fetchRequest()
-        
-        var predicates: [NSPredicate] = []
-        
-        // Add predicate for user
-        if let userId = userId {
-            predicates.append(NSPredicate(format: "createdBy == %@", userId))
+        guard let userId = Auth.auth().currentUser?.uid else {
+            throw TaskServiceError.userNotFound
         }
         
-        // Add predicate for completion status if specified
+        // Create a query for user's tasks
+        var query: Query = db.collection("users").document(userId).collection("tasks")
+        
+        // Add filter for completion status if specified
         if let completed = completed {
-            predicates.append(NSPredicate(format: "completed == %@", NSNumber(value: completed)))
+            query = query.whereField("completed", isEqualTo: completed)
         }
         
-        // Combine predicates if we have any
-        if !predicates.isEmpty {
-            fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
-        }
-        
-        // Sort by due date (most recent first)
-        let sortDescriptor = NSSortDescriptor(key: "dueDate", ascending: true)
-        fetchRequest.sortDescriptors = [sortDescriptor]
+        // Sort by due date
+        query = query.order(by: "dueDate", descending: false)
         
         do {
-            let tasks = try viewContext.fetch(fetchRequest)
+            // Perform the query
+            let snapshot = try await query.getDocuments()
+            
+            // Create context for CoreData objects
+            let context = CoreDataStack.shared.persistentContainer.viewContext
+            
+            // Convert Firestore documents to StudyPalTask objects
+            var tasks: [StudyPalTask] = []
+            
+            for document in snapshot.documents {
+                let data = document.data()
+                
+                let task = StudyPalTask(context: context)
+                task.id = data["id"] as? String
+                task.name = data["name"] as? String
+                task.taskDesc = data["taskDesc"] as? String
+                task.createdBy = data["createdBy"] as? String
+                task.completed = data["completed"] as? Bool ?? false
+                
+                // Handle date conversion
+                if let dueDate = data["dueDate"] as? Timestamp {
+                    task.dueDate = dueDate.dateValue()
+                }
+                
+                if let completionDate = data["completionDate"] as? Timestamp {
+                    task.completionDate = completionDate.dateValue()
+                }
+                
+                task.completionNotes = data["completionNotes"] as? String
+                
+                // Handle isAllDay
+                task.isAllDay = data["isAllDay"] as? Bool ?? false
+                
+                // Handle category
+                if let categoryName = data["categoryName"] as? String,
+                   let categoryColor = data["categoryColor"] as? String {
+                    let category = Category(context: context)
+                    category.id = data["categoryId"] as? String
+                    category.name = categoryName
+                    category.color = categoryColor
+                    task.category = category
+                }
+                
+                tasks.append(task)
+            }
+            
             return tasks
         } catch {
-            print("Error fetching tasks: \(error)")
+            print("Error fetching tasks from Firestore: \(error)")
             throw TaskServiceError.fetchFailed
         }
     }
@@ -140,95 +217,163 @@ class TaskService {
                    categoryName: String? = nil,
                    categoryColor: String? = nil) async throws -> StudyPalTask {
         
-        // Fetch the task
-        let fetchRequest: NSFetchRequest<StudyPalTask> = StudyPalTask.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "id == %@", taskId)
+        guard let userId = Auth.auth().currentUser?.uid else {
+            throw TaskServiceError.userNotFound
+        }
+        
+        // Reference to the task document
+        let taskRef = db.collection("users").document(userId).collection("tasks").document(taskId)
         
         do {
-            let results = try viewContext.fetch(fetchRequest)
-            guard let task = results.first else {
+            // Verify task exists
+            let document = try await taskRef.getDocument()
+            guard document.exists else {
                 throw TaskServiceError.taskNotFound
             }
             
-            // Update task properties
+            // Prepare data for update
+            var updateData: [String: Any] = [
+                "updatedAt": FieldValue.serverTimestamp()
+            ]
+            
+            // Add fields to update if they're provided
             if let name = name {
-                task.name = name
+                updateData["name"] = name
             }
             
             if let description = description {
-                task.taskDesc = description
+                updateData["taskDesc"] = description
             }
             
             if let dueDate = dueDate {
-                task.dueDate = dueDate
+                updateData["dueDate"] = dueDate
             }
             
             if let isAllDay = isAllDay {
-                task.isAllDay = isAllDay
+                updateData["isAllDay"] = isAllDay
             }
             
             if let completed = completed {
-                task.completed = completed
+                updateData["completed"] = completed
                 
-                // If task is being completed, set completion date
-                if completed && task.completionDate == nil {
-                    task.completionDate = Date()
+                // If task is being completed and no completion date provided, set it to now
+                if completed && completionDate == nil {
+                    updateData["completionDate"] = FieldValue.serverTimestamp()
                 }
             }
             
             if let completionDate = completionDate {
-                task.completionDate = completionDate
+                updateData["completionDate"] = completionDate
             }
             
             if let completionNotes = completionNotes {
-                task.completionNotes = completionNotes
+                updateData["completionNotes"] = completionNotes
             }
             
             // Update category if specified
             if let categoryName = categoryName, !categoryName.isEmpty {
                 let category = try await getOrCreateCategory(name: categoryName, color: categoryColor ?? "blue")
+                updateData["categoryId"] = category.id
+                updateData["categoryName"] = category.name
+                updateData["categoryColor"] = category.color
+            }
+            
+            // Update Firestore
+            try await taskRef.updateData(updateData)
+            
+            // Get updated task data
+            let updatedDocument = try await taskRef.getDocument()
+            let data = updatedDocument.data() ?? [:]
+            
+            // Create StudyPalTask for compatibility with UI
+            let context = CoreDataStack.shared.persistentContainer.viewContext
+            let task = StudyPalTask(context: context)
+            
+            task.id = taskId
+            task.name = data["name"] as? String
+            task.taskDesc = data["taskDesc"] as? String
+            task.createdBy = data["createdBy"] as? String
+            task.completed = data["completed"] as? Bool ?? false
+            
+            // Handle date conversion
+            if let dueDate = data["dueDate"] as? Timestamp {
+                task.dueDate = dueDate.dateValue()
+            }
+            
+            if let completionDate = data["completionDate"] as? Timestamp {
+                task.completionDate = completionDate.dateValue()
+            }
+            
+            task.completionNotes = data["completionNotes"] as? String
+            task.isAllDay = data["isAllDay"] as? Bool ?? false
+            
+            // Handle category
+            if let categoryName = data["categoryName"] as? String,
+               let categoryColor = data["categoryColor"] as? String {
+                let category = Category(context: context)
+                category.id = data["categoryId"] as? String
+                category.name = categoryName
+                category.color = categoryColor
                 task.category = category
             }
             
-            // Save changes
-            try viewContext.save()
             return task
-            
         } catch {
-            print("Error updating task: \(error)")
+            print("Error updating task in Firestore: \(error)")
             throw TaskServiceError.updateFailed
         }
     }
     
     // MARK: - Delete Task
     func deleteTask(taskId: String) async throws -> Bool {
-        let fetchRequest: NSFetchRequest<StudyPalTask> = StudyPalTask.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "id == %@", taskId)
+        guard let userId = Auth.auth().currentUser?.uid else {
+            throw TaskServiceError.userNotFound
+        }
+        
+        let taskRef = db.collection("users").document(userId).collection("tasks").document(taskId)
         
         do {
-            let results = try viewContext.fetch(fetchRequest)
-            guard let task = results.first else {
+            // Verify task exists
+            let document = try await taskRef.getDocument()
+            guard document.exists else {
                 throw TaskServiceError.taskNotFound
             }
             
-            viewContext.delete(task)
-            try viewContext.save()
+            // Delete the task
+            try await taskRef.delete()
             return true
         } catch {
-            print("Error deleting task: \(error)")
+            print("Error deleting task from Firestore: \(error)")
             throw TaskServiceError.deleteFailed
         }
     }
     
     // MARK: - Get Categories
     func getCategories() async throws -> [Category] {
-        let fetchRequest: NSFetchRequest<Category> = Category.fetchRequest()
+        guard let userId = Auth.auth().currentUser?.uid else {
+            throw TaskServiceError.userNotFound
+        }
         
         do {
-            let categories = try viewContext.fetch(fetchRequest)
+            let snapshot = try await db.collection("users").document(userId).collection("categories").getDocuments()
+            
+            let context = CoreDataStack.shared.persistentContainer.viewContext
+            var categories: [Category] = []
+            
+            for document in snapshot.documents {
+                let data = document.data()
+                
+                let category = Category(context: context)
+                category.id = document.documentID
+                category.name = data["name"] as? String
+                category.color = data["color"] as? String
+                
+                categories.append(category)
+            }
+            
             return categories
         } catch {
-            print("Error fetching categories: \(error)")
+            print("Error fetching categories from Firestore: \(error)")
             throw TaskServiceError.fetchFailed
         }
     }

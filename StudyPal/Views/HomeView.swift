@@ -25,12 +25,12 @@ let notesData = [
 struct HomeView: View {
     // Replace hardcoded tasks with TaskViewModel
     @StateObject private var taskViewModel = TaskViewModel()
-    @EnvironmentObject private var appState: AppState
     
     @State private var allNotes: [NoteDataModel] = notesData.map { note in
         NoteDataModel(name: note.0, date: note.1)
     }
     
+    @EnvironmentObject private var appState: AppState
     @State private var selectedTask: StudyPalTask?
     @State private var showEditTask = false
     
@@ -92,16 +92,10 @@ struct HomeView: View {
                             Text("Recent Notes")
                                 .font(.system(size: 20))
                             Spacer()
-                            
-                            NavigationLink {
-                                AddNotesView()
-                                    .navigationTitle("Add Notes")
-                            } label: {
-                                Image(systemName: "plus")
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 20, height: 20)
-                            }
+                            Image(systemName: "plus")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 20, height: 20)
                         }
                     }
                 }
@@ -194,9 +188,6 @@ struct HomeView: View {
         }
         .onAppear {
             taskViewModel.loadTasks()
-            appState.showTab = true
-        }
-        .onDisappear {
         }
         .navigationDestination(isPresented: $showEditTask) {
             if let task = selectedTask {
@@ -262,7 +253,6 @@ struct TaskItemView: View {
 
 #Preview {
     HomeView()
-        .environmentObject(AppState())
 }
 
 /*
