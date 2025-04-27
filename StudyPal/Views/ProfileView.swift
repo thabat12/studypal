@@ -165,21 +165,6 @@ struct ProfileView: View {
                             }
                             .buttonStyle(.bordered)
                         }
-                        
-                        // Google Docs
-                        HStack {
-                            Text("Google Docs")
-
-                            Spacer()
-
-                            Button(action: openGoogleCalendar) {
-                                Text("Integrate")
-                                    .font(.system(size: 14))
-                                    .padding(.vertical, 6)
-                                    .padding(.horizontal, 12)
-                            }
-                            .buttonStyle(.bordered)
-                        }
                     }
                     .padding(.top, 30)
                 }

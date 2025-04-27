@@ -73,16 +73,6 @@ struct CreateGroupView: View {
                     groupFieldFocused = CreateGroupFocusField.done
                 }
             
-            HStack {
-                Text("Privacy Setting")
-                
-                Picker("Privacy Setting", selection: $selectedPrivacy) {
-                    Text("ON").tag(0)
-                    Text("OFF").tag(1)
-                }
-                .pickerStyle(.segmented)
-            }
-            
             Spacer()
             
             HStack {

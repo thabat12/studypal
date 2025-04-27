@@ -40,9 +40,10 @@ struct GroupChatLabelTileComponent: View {
                 Text(groupChat.name!)
                     .font(.title2)
 
-                Text(groupChat.recentMessage ?? "Nothing here yet!")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
+                Text(groupChat.description ?? "No description yet")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .lineLimit(2)
             }
 
             Spacer()

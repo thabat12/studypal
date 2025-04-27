@@ -10,18 +10,21 @@ import SwiftUI
 struct GroupChatInfoModel: Identifiable {
     let id: String
     let name: String?
+    let description: String?
     let isPrivate: Bool?
     let members: [String]?
     let recentMessage: String?
     let imageURL: String?
     
     init(name: String? = nil,
+        description: String? = nil,
         isPrivate: Bool? = nil,
         members: [String]? = nil,
         recentMessage: String? = nil,
         imageURL: String? = nil) {
         
         self.name = name
+        self.description = description
         self.isPrivate = isPrivate
         self.members = members
         self.recentMessage = recentMessage
@@ -33,6 +36,7 @@ struct GroupChatInfoModel: Identifiable {
     init(dictionary: [String: Any]) throws {
         
         self.name = dictionary["name"] as? String
+        self.description = dictionary["description"] as? String
         self.isPrivate = dictionary["isPrivate"] as? Bool
         self.members = dictionary["members"] as? [String]
         self.recentMessage = dictionary["recentMessage"] as? String
@@ -190,9 +194,14 @@ struct GroupsView: View {
                             }
                             
                             Divider()
-                            Text("Join Group")
-                                .foregroundStyle(Color.white)
-                                .padding(.vertical, 5)
+                            
+                            NavigationLink {
+                                    JoinGroupView()
+                                } label: {
+                                    Text("Join Group")
+                                        .foregroundStyle(.white)
+                                        .padding(.vertical, 5)
+                                }
                         }
                         .padding(.vertical, 10)
                     }

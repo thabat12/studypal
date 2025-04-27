@@ -551,7 +551,7 @@ class StudyPalAPI {
         major: String,
         courses: [String],
         affiliation: String,
-        imageURL: String? = nil            // ← ADD
+        imageURL: String? = nil
     ) async throws {
 
         let uid = try await getUid()
@@ -562,7 +562,7 @@ class StudyPalAPI {
             "courses": courses,
             "affiliation": affiliation
         ]
-        if let imageURL { data["imageURL"] = imageURL }   // ← ADD
+        if let imageURL { data["imageURL"] = imageURL }  
 
         try await ref.setData(data, merge: true)
     }
@@ -576,7 +576,7 @@ class StudyPalAPI {
         return snap.data() ?? [:]
     }
     
-    // MARK: uploadProfileImage
+    // uploadProfileImage function
     static func uploadProfileImage(_ image: UIImage) async throws -> String {
         guard let data = image.jpegData(compressionQuality: 0.8) else {
             throw DataErrors.errorParsingData
@@ -586,7 +586,6 @@ class StudyPalAPI {
         let ref = storage.reference()
                       .child("users/\(uid)/profile.jpg")  
 
-        // Wrap callback Storage API in a continuation
         return try await withCheckedThrowingContinuation { cont in
             ref.putData(data, metadata: nil) { _, error in
                 if let error { cont.resume(throwing: error); return }
@@ -599,8 +598,54 @@ class StudyPalAPI {
         }
     }
 
-
-
+    // queryAllGroups
+    static func queryAllGroups() async throws -> [GroupChatInfoModel] {
+        let snap = try await Firestore.firestore()
+            .collection("groupChats")
+            .whereField("isPrivate", isEqualTo: false)
+            .getDocuments()
+        
+        return snap.documents.compactMap { doc in
+            var data = doc.data()
+            data["id"] = doc.documentID
+            return try? GroupChatInfoModel(dictionary: data)
+        }
+    }
+        
+    // joinGroup
+    static func joinGroup(groupId: String) async throws {
+        guard let uid = Auth.auth().currentUser?.uid else {
+            throw FirebaseAPIErrors.userNotSignedIn
+        }
+        
+        try await Firestore.firestore()
+            .collection("groupChats")
+            .document(groupId)
+            .updateData([
+                "members": FieldValue.arrayUnion([uid])
+            ])
+    }
     
+    // getting the display names to show on groups screen
+    static func getDisplayNames(for uids: [String]) async throws -> [String: String] {
+        var results: [String: String] = [:]
+        let usersRef = db.collection("users")
+
+        try await withThrowingTaskGroup(of: (String, String?).self) { group in
+            for uid in Set(uids) { 
+                group.addTask {
+                    let snap = try await usersRef.document(uid).getDocument()
+                    let data = snap.data() ?? [:]
+                    let name = data["displayName"] as? String
+                        ?? (data["email"] as? String)?.components(separatedBy: "@").first
+                    return (uid, name)
+                }
+            }
+            for try await (uid, name) in group {
+                if let name { results[uid] = name }
+            }
+        }
+        return results
+    }
 }
 
